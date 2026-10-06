@@ -89,6 +89,36 @@ var AETEST = (function () {
         return false;
     }
 
+    // One frame through the render queue (synchronous, unlike CompItem.saveFrameToPng).
+    // Writes <base>_<frame>.png (or .tif if no PNG output is available).
+    function renderFrame(comp, time, base) {
+        var rq = app.project.renderQueue;
+        var item = rq.items.add(comp);
+        var info = { time: time, format: null, error: null };
+        try {
+            item.timeSpanStart = time;
+            item.timeSpanDuration = comp.frameDuration;
+            var om = item.outputModule(1);
+            try {
+                om.setSettings({ "Format": "PNG Sequence" });
+                info.format = "PNG Sequence";
+            } catch (e1) {
+                var names = om.templates;
+                for (var i = 0; i < names.length && !info.format; i++) {
+                    if (/png/i.test(names[i])) { om.applyTemplate(names[i]); info.format = names[i]; }
+                }
+                if (!info.format) { om.applyTemplate("TIFF Sequence with Alpha"); info.format = "TIFF Sequence with Alpha"; }
+            }
+            om.file = new File(base + "_[#####]");
+            rq.render();
+            info.file = om.file.fsName;
+        } catch (e) {
+            info.error = e.toString();
+        }
+        try { item.remove(); } catch (e2) {}
+        return info;
+    }
+
     return { toJson: toJson, writeText: writeText, tree: tree, reflectNames: reflectNames, codes: codes,
-             waitForFile: waitForFile, q: q };
+             waitForFile: waitForFile, renderFrame: renderFrame, q: q };
 })();

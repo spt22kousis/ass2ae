@@ -45,6 +45,24 @@
         return comp;
     }
 
+    // Anchor point and text box corners in comp space, evaluated by a temporary expression.
+    function compGeometry(l) {
+        var fx = l.property("ADBE Effect Parade").addProperty("ADBE Point Control");
+        var pt = fx.property(1);
+        var out = {};
+        var exprs = {
+            anchor: "toComp(transform.anchorPoint)",
+            topLeft: "var r = sourceRectAtTime(time, false); toComp([r.left, r.top])",
+            bottomRight: "var r = sourceRectAtTime(time, false); toComp([r.left + r.width, r.top + r.height])"
+        };
+        for (var k in exprs) {
+            pt.expression = exprs[k];
+            out[k] = pt.valueAtTime(l.inPoint, false);
+        }
+        fx.remove();
+        return out;
+    }
+
     function dumpLayer(l) {
         var o = { index: l.index, name: l.name, comment: l.comment, enabled: l.enabled, inPoint: l.inPoint,
                   outPoint: l.outPoint, startTime: l.startTime, generated: startsWith(l.comment, "[ass2ae]") };
@@ -60,6 +78,8 @@
         o.anchor = tr.property("ADBE Anchor Point").value;
         o.position = tr.property("ADBE Position").value;
         o.rect = l.sourceRectAtTime(l.inPoint, false);
+        o.parent = l.parent ? l.parent.name : null;
+        o.comp = compGeometry(l);
         o.markers = [];
         var mk = l.property("ADBE Marker");
         for (var k = 1; k <= mk.numKeys; k++) {
@@ -110,11 +130,7 @@
             }
             res.frames = [];
             for (var f = 0; f < cs.renderTimes.length; f++) {
-                var png = new File(outDir + "/" + cs.name + "_" + f + ".png");
-                if (png.exists) { png.remove(); }
-                // written asynchronously after the script returns; run_in_ae.py waits for it
-                comp.saveFrameToPng(cs.renderTimes[f], png);
-                res.frames.push({ time: cs.renderTimes[f], file: png.fsName });
+                res.frames.push(T.renderFrame(comp, cs.renderTimes[f], outDir + "/" + cs.name + "_" + f));
             }
             res.comp = { name: comp.name, frameRate: comp.frameRate, width: comp.width, height: comp.height };
             res.layers = [];
@@ -123,12 +139,6 @@
             res.error = err.toString() + " line " + err.line;
         }
         T.writeText(outDir + "/" + cs.name + ".result.json", T.toJson(res));
-    }
-    // let AE render the requested frames (it does so while the script sleeps)
-    for (var w = 0; w < H.cases.length; w++) {
-        for (var wf = 0; wf < H.cases[w].renderTimes.length; wf++) {
-            T.waitForFile(outDir + "/" + H.cases[w].name + "_" + wf + ".png", 60);
-        }
     }
     $.global.ASS2AE_HEADLESS = false;
     $.global.ASS2AE_TARGET = null;

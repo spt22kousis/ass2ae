@@ -48,6 +48,8 @@ class Options:
     newline_counts: bool = False
     font_scale: float = 0.7
     font_map: dict[str, str] = field(default_factory=dict)
+    furigana: bool = True
+    furi_scale: float = 0.5  # karaskel's default furigana size when there is no "<Style>-furigana"
 
 
 def _num(x: Fraction | float | int) -> float | int:
@@ -81,6 +83,76 @@ def marker_params(syl: Syllable, line: Line, offset: Fraction) -> dict[str, str]
 def layer_name(n: int, text: str, length: int = 8) -> str:
     snippet = text.replace(NEWLINE, " ").replace(" ", " ").strip()[:length]
     return f"KARA_{n:04d}_{snippet}"
+
+
+_BASE_SPACE = " \t\u00a0\u3000\n"
+
+
+def js_len(text: str) -> int:
+    """Length in UTF-16 code units, i.e. JavaScript string indices."""
+    return len(text.encode("utf-16-le")) // 2
+
+
+def furi_markers(syl: Syllable, line: Line, offset: Fraction) -> list[dict]:
+    """One marker per furigana part; zero-length parts join the next (or the previous) one."""
+    out: list[dict] = []
+    pending = ""
+    for f in syl.furi:
+        if not f.text:
+            continue
+        if f.duration <= 0:
+            pending += f.text
+            continue
+        out.append({"t": _num(f.start + offset), "d": _num(f.duration), "c": pending + f.text,
+                    "p": {"kind": "furi", "base": syl.text.strip(_BASE_SPACE), "event": str(line.event_no)}})
+        pending = ""
+    if pending and out:
+        out[-1]["c"] += pending
+    return out
+
+
+def furi_groups(line: Line, n: int, style_key: str, offset: Fraction, warnings: list[str]) -> list[dict]:
+    """Furigana layers for one line: text, the base range in the layer text (JS indices) and markers."""
+    groups: list[dict] = []
+    pos = 0
+    for syl in line.syllables:
+        text = "".join(f.text for f in syl.furi).replace(NEWLINE, "")
+        if text:
+            i, j = 0, len(syl.text)
+            while i < j and syl.text[i] in _BASE_SPACE:
+                i += 1
+            while j > i and syl.text[j - 1] in _BASE_SPACE:
+                j -= 1
+            base = syl.text[i:j]
+            if not base or NEWLINE in base:
+                warnings.append(f"event #{line.event_no}: furigana {text!r} has no single-line base text, skipped")
+            else:
+                k = len(groups) + 1
+                markers = furi_markers(syl, line, offset)
+                groups.append({
+                    "name": f"KARA_{n:04d}_F{k:02d}_{text[:6]}",
+                    "comment": f"{MARK} furi line={n:04d} n={k:02d} event={line.event_no} style={style_key}",
+                    "text": text,
+                    "base": base,
+                    "start": js_len(line.text[:pos + i]),
+                    "end": js_len(line.text[:pos + j]),
+                    "markers": markers,
+                })
+        pos += len(syl.text)
+    return groups
+
+
+def furi_style(name: str, subs: pysubs2.SSAFile, main: dict, opts: Options, fonts: FontIndex,
+               font_metrics: dict, warnings: list[str]) -> dict:
+    """"<Style>-furigana" if the script has it, else the main style scaled like karaskel does."""
+    key = f"{name}-furigana"
+    if key in subs.styles:
+        return style_data(key, subs.styles[key], subs, opts, fonts, font_metrics, warnings)
+    st = dict(main)
+    for k in ("size", "outline", "spacing"):
+        st[k] = _num(Fraction(str(main[k])) * Fraction(str(opts.furi_scale)))
+    st["synthetic"] = True
+    return st
 
 
 def _face_metrics(face: FontFace) -> dict:
@@ -154,6 +226,12 @@ def build_data(subs: pysubs2.SSAFile, result: ParseResult, opts: Options, source
         if line.style not in styles:
             styles[line.style] = style_data(line.style, st, subs, opts, fonts, font_metrics, warnings)
         place = placement(line, st, res)
+        furi = []
+        if opts.furigana and any(syl.furi for syl in line.syllables):
+            fkey = f"{line.style}-furigana"
+            if fkey not in styles:
+                styles[fkey] = furi_style(line.style, subs, styles[line.style], opts, fonts, font_metrics, warnings)
+            furi = furi_groups(line, n, fkey, opts.offset, warnings)
         markers = []
         for syl in line.syllables:
             comment = marker_comment(syl.text, opts.newline_counts)
@@ -176,6 +254,8 @@ def build_data(subs: pysubs2.SSAFile, result: ParseResult, opts: Options, source
             "text": line.text.replace(NEWLINE, "\r"),
             "inPoint": _num(in_p),
             "outPoint": _num(out_p),
+            "start": _num(line.start + opts.offset),
+            "end": _num(line.end + opts.offset),
             "inFrame": frame_ceil(line.start + opts.offset, opts.fps),
             "outFrame": frame_ceil(line.end + opts.offset, opts.fps),
             "alignment": place.alignment,
@@ -185,6 +265,8 @@ def build_data(subs: pysubs2.SSAFile, result: ParseResult, opts: Options, source
             "positioned": place.positioned,
             "angle": _num(st.angle),
             "markers": markers,
+            "furiStyle": f"{line.style}-furigana" if furi else None,
+            "furi": furi,
         })
 
     duration = frame_to_time(frame_ceil(max_t + 1, opts.fps), opts.fps)
@@ -208,6 +290,7 @@ def build_data(subs: pysubs2.SSAFile, result: ParseResult, opts: Options, source
             "newlineCounts": opts.newline_counts,
             "fontScale": opts.font_scale,
             "sungColor": opts.sung_color,
+            "furiScale": opts.furi_scale,
         },
         "amountExpression": AMOUNT_EXPRESSION,
         "fontMetrics": font_metrics,

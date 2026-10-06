@@ -4,9 +4,44 @@
 
 - 每行歌詞變成一個文字圖層
 - 每個音節變成該圖層上的一個 layer marker：時間＝音節開始、duration＝音節長度、comment＝音節文字
+- 有振假名（`漢字|かな`）的音節，上方會多一個振假名文字層，它的 marker 用各假名自己的時間
 - （預設）每個有 marker 的圖層加一個由 marker 驅動的變色 Text Animator，用來驗證時間
 
 之後的特效可以全部用 expression 讀這些 marker 來做。
+
+也可以直接指定影片，由工具開啟 AE、匯入影片、建合成、加入歌詞並存成 `.aep`。不熟命令列的人可以用圖形介面版 `ass2ae.exe`（見「圖形介面」）。
+
+## 圖形介面（給一般使用者）
+
+`ass2ae.exe` 是打包好的 Windows 程式，不需要安裝 Python。雙擊打開後：
+
+1. 選 ASS 字幕檔、影片、輸出專案的位置（預設放在影片旁邊、用字幕檔名命名）。
+2. 選「唱到時的顏色」。如果字幕樣式裡的 PrimaryColour 和 SecondaryColour 不同，會自動勾選「改用字幕樣式裡的顏色」。
+3. 按「產生 AE 專案」。程式會啟動 After Effects（已經開著就沿用），在 AE 裡依序完成：
+   1. 開新專案
+   2. 匯入影片
+   3. 用影片的尺寸、fps、長度建合成
+   4. 加入歌詞和振假名
+   5. 存檔
+
+完成後，視窗下方會列出圖層數和注意事項，專案也會留在 AE 裡開著。
+
+「進階設定」裡可以設定：
+
+- 要轉換的樣式（勾選框）
+- 時間偏移
+- 要不要加變色效果
+- 字型對照表
+- 找不到字型檔時的大小比例
+- After Effects 的位置
+
+需要的環境：
+
+- **After Effects**：2024 以後的版本。2025 實測過。
+- **AE 開著時**：會開一個新專案。如果目前專案有未存的變更，AE 會先問要不要存檔。
+- **AE 的寫檔權限**：不需要開「允許腳本寫檔」。沒開的話，結果摘要會改成顯示在 AE 的對話框裡。
+
+同一個 exe 帶參數執行時就是命令列版，例如 `ass2ae.exe song.ass --video song.mp4`。給一般使用者的簡短說明在 [tools/build/使用說明.txt](tools/build/使用說明.txt)，打包時會一起複製到 `dist/`。
 
 ## 安裝
 
@@ -49,7 +84,7 @@ python -m ass2ae input.ass -o out.jsx
 | `--offset` | `0` | ASS 的 0 秒對應到合成的哪個時間點。可寫秒數（`12.5`）、時間碼（`1:02.50`）或影格（`48f`），可為負 |
 | `--width` / `--height` | PlayResX / PlayResY | 新建合成時的尺寸 |
 | `--comp-name` | 輸入檔名 | 新建合成的名稱 |
-| `--style-mode` | `template` | `template`：複製合成裡的範本文字層；`ass`：依 ASS 樣式設定字型、顏色、描邊 |
+| `--style-mode` | `template`（有 `--video` 時為 `ass`） | `template`：複製合成裡的範本文字層；`ass`：依 ASS 樣式設定字型、顏色、描邊 |
 | `--template` | `KARA_TEMPLATE` | 範本圖層名稱。會先找 `<名稱>_<樣式名>`（例如 `KARA_TEMPLATE_K1`），找不到再用 `<名稱>` |
 | `--with-animator` / `--no-animator` | 開 | 是否加變色 Animator |
 | `--sung-color` | 樣式的 PrimaryColour | 已唱色，`#RRGGBB` 或 `&HBBGGRR&` |
@@ -60,7 +95,23 @@ python -m ass2ae input.ass -o out.jsx
 | `--no-font-scan` | — | 不用 fontTools 找字型 |
 | `--encoding` | `utf-8-sig` | 輸入檔編碼 |
 | `--dump-json FILE` | — | 另外輸出嵌進 JSX 的資料（除錯用） |
+| `--furigana` / `--no-furigana` | 開 | 是否建立振假名圖層 |
 | `-q, --quiet` | — | 只印錯誤 |
+
+直接產生 AE 專案（Windows，需要安裝 After Effects）：
+
+| 選項 | 預設 | 說明 |
+|---|---|---|
+| `--video` | — | 要匯入的影片。指定後會啟動 AE、建合成、加入歌詞並存檔；這時 `--style-mode` 預設為 `ass` |
+| `--aep` | 影片旁邊、用字幕檔名命名 | 要存的專案 |
+| `--afterfx` | 最新安裝的版本 | AfterFX.exe 的位置 |
+| `--timeout` | `3600` | 等 AE 完成的秒數上限 |
+
+```bash
+python -m ass2ae song.ass --video song.mp4 --aep song.aep --sung-color "#0076FF"
+```
+
+合成的尺寸、fps、長度都跟影片一樣。如果歌詞比影片長，合成會延長。
 
 ## 在 AE 執行
 
@@ -74,7 +125,7 @@ python -m ass2ae input.ass -o out.jsx
 
 - **復原**：整個動作包在一個 undo group 裡，按一次 Ctrl+Z 就能全部還原。
 - **重跑安全**：執行前會先刪掉上次產生的圖層。只認 `Layer.comment` 開頭的 `[ass2ae]` 標記，其他圖層一律不動。
-- **fps 不一致**：選取的合成 fps 和 `--fps` 不同時會警告。
+- **fps 不一致**：選取的合成 fps 和 `--fps` 不同時會警告。入出點仍會依合成自己的 fps 換算成影格，所以結果正確。
 - **合成太短**：選取的合成比歌詞短時也會警告。
 - **命令列執行**（Windows）：
 
@@ -136,6 +187,23 @@ python -m ass2ae input.ass -o out.jsx
   - 入點＝ceil(start×fps)/fps，出點＝ceil(end×fps)/fps，與 libass「start ≤ t < end 才顯示」一致。
   - 顯示不到一格的行會跳過並警告。
 - **沒有 `\k` 的行**（例如翻譯行）：照樣建立圖層，但不建 marker。
+
+### 振假名圖層
+
+- **哪些音節會有**：音節裡有振假名（`漢字|かな`）時，在它上方建一個文字層。用 `#` 續接的假名會合在同一層，例如「頭」上方的「あたま」。
+- **名稱與 comment**
+  - 名稱：`KARA_0001_F01_あたま`。
+  - comment：`[ass2ae] furi line=0001 n=01 …`，所以重跑時也會一起清掉。
+  - 圖層位置：緊貼在所屬歌詞層的上方。
+- **父層**：設為所屬的歌詞層，所以歌詞層之後移動、縮放、旋轉時，振假名會跟著動。入出點與歌詞層相同。
+- **位置**
+  - 水平：量出基底文字在整行中的中心，振假名置中對齊它。做法是用一個暫時的文字層，量「前面的文字＋`|`」的寬度，再扣掉「`|`」本身的寬度。
+  - 垂直：振假名行框的底部貼在主文字行框的頂端（基線 − ascent）。
+- **樣式**
+  - **ass 模式**：用 `<樣式名>-furigana` 樣式（Aegisub karaskel 的慣例）。沒有這個樣式時，用主樣式的一半字級和描邊。
+  - **template 模式**：依序找 `KARA_TEMPLATE_FURI_<樣式名>`、`KARA_TEMPLATE_FURI`。都沒有時，用該行的範本縮成一半。
+- **Marker**：每個假名一個，時間是假名自己的時間。長度 0 的假名會併入下一個。參數是 `kind=furi`、`base`（基底文字）、`event`。
+- **變色**：跟歌詞層一樣加 Text Animator，已唱色用 `--sung-color`，沒指定時用振假名樣式的 PrimaryColour。
 
 ### Marker
 
@@ -233,9 +301,9 @@ JSX 結束前會逐層檢查以下三項，不符的都列入警告：
 
 - **計算方式**：全程用 `fractions.Fraction`。marker 用精確秒數，不對齊影格。
 - **AE 的 23.976**：AE 把 23.976 合成當成剛好 23.976 fps（`frameDuration` = 1/23.976），不是 24000/1001。
-  - JSX 依合成自己的 `frameDuration` 設入出點（影格號由 Python 依 `--fps` 算好），所以一定落在 AE 的影格線上。
+  - JSX 依合成自己的 `frameDuration` 設入出點，所以一定落在 AE 的影格線上。影格號在 fps 相符時由 Python 依 `--fps` 算好；不相符時（例如 `--video` 用影片的 fps 建合成），由 JSX 用合成的 fps 依同樣規則換算。
   - 與真正 24000/1001 的差距每格約 4×10⁻⁸ 秒，實務上沒有影響。
-- **AE 的時間精度**：AE 以 1/(1000×fps) 秒為單位存時間（23.976 時約 0.04ms），marker 時間會被四捨五入到這個精度。
+- **AE 的時間精度**：AE 以 1/(1000×fps) 秒為單位存時間（23.976 時約 0.04ms），marker 時間會被四捨五入到這個精度。超過約 2 分鐘的時間點還會再多約 0.02ms 的誤差，實測時都遠小於一格。
 
 ## 已知限制
 
@@ -245,7 +313,9 @@ JSX 結束前會逐層檢查以下三項，不符的都列入警告：
 - **水平對齊**：用的是字形外框，與 libass 用字寬（advance）算的框，左右可能差幾個像素。
 - **字型 fallback**：template 模式時，範本字型缺字的部分由 AE 自動換字，此時讀到的字型（`TextDocument.font`）是第一個字實際用的字型。
 - **ass 模式不轉換的樣式欄位**：陰影、底線、刪除線、不透明框（BorderStyle 3）。
-- **這階段不做**：閃光層、特效 precomp、遮罩填色、振假名圖層、音節座標量測。資料已預留：`\k` 種類、振假名及其時間都存在 marker 參數裡。
+- **振假名的排版**：每個音節的振假名各自置中，不會像 karaskel 那樣處理相鄰振假名的推擠，也不處理 `<`（spillback）、`!`（break）旗標。旗標只存在 marker 參數裡。
+- **檢視器速度**：對一個開在檢視器裡、而且有影片的合成執行腳本時，AE 每改一次就重畫一次畫面，會非常慢。建議先關掉該合成的檢視器再執行；`--video` 和圖形介面會在全部建完後才打開合成。
+- **這階段不做**：閃光層、特效 precomp、遮罩填色。
 
 ## 開發
 
@@ -277,5 +347,19 @@ set UPDATE_SNAPSHOTS=1 && .venv\Scripts\python -m pytest tests/test_jsxgen.py   
   - 文字、marker 時間、comment、參數
   - selector 與 expression 錯誤
   - 重跑安全
-- **渲染圖**：fixtures 也會嘗試輸出 `<案例>_<n>.png`。但 `CompItem.saveFrameToPng` 是非同步的，用 `-r` 執行時不一定寫得出來，所以目視檢查請直接在 AE 開 `ass2ae_test_*` 合成。
+- **振假名層**：也會檢查父層、文字、marker，以及位置是否落在所屬歌詞的上方、水平範圍內。
+- **渲染圖**：fixtures 會用 Render Queue 輸出每個案例的單張畫面，存成 `tools/ae/out/<案例>_<n>_<影格>.tif`。不用 `CompItem.saveFrameToPng`，因為它是非同步的，用 `-r` 執行時常寫不出來，還可能讓 AE 卡住無法關閉。
 - **注意**：AE 沒在執行時會被啟動（之後不會自動關閉）。腳本只會新增或刪除名稱以 `ass2ae_test_`、`ass2ae_probe` 開頭的合成，不會存檔或關閉專案。
+
+### 打包 exe
+
+```bash
+.venv\Scripts\python -m pip install pyinstaller
+.venv\Scripts\python tools\build\build_exe.py
+```
+
+產生 `dist/ass2ae.exe`（單一檔案，約 14MB）和 `dist/使用說明.txt`。入口是 `tools/build/ass2ae_app.py`：不帶參數時開 GUI，帶參數時跑命令列。
+
+- **防毒誤判**：PyInstaller 打包的程式偶爾會被防毒軟體誤判，沒有程式碼簽章時無法完全避免。
+- **字型快取**：字型索引會存在 `%LOCALAPPDATA%\ass2ae\font-index.json`。
+- **暫存檔**：每次產生專案時的腳本和狀態檔放在 `%LOCALAPPDATA%\ass2ae\runs\`。

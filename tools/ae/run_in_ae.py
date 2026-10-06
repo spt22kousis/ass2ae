@@ -69,6 +69,7 @@ CASES = [
     # real files (skipped when ass_example/ is absent)
     ("kk_ass", "ass_example/kk.ass", {"style_mode": "ass", "sung_color": "#FF0000"}, "new"),
     ("snooze_template", "ass_example/snooze.ass", {"style_mode": "template", "sung_color": "#FF0000"}, "template"),
+    ("snooze_ass", "ass_example/snooze.ass", {"style_mode": "ass", "sung_color": "&HFF7600&", "fps": "60"}, "new"),
 ]
 
 
@@ -77,15 +78,43 @@ def build_case(name: str, fixture: str, opts: dict):
     from ass2ae.jsxgen import Options, build_data, render
     from ass2ae.layout import parse_color
     from ass2ae.parser import load, parse_subs
+    from ass2ae.timing import parse_fps
 
     o = dict(opts, comp_name=f"ass2ae_test_{name}")
     if "sung_color" in o:
         o["sung_color"] = parse_color(o["sung_color"])
+    if "fps" in o:
+        o["fps"] = parse_fps(o["fps"])
     subs = load(str(ROOT / fixture))
     data = build_data(subs, parse_subs(subs), Options(**o), Path(fixture).name, build_index())
     jsx = OUT / f"{name}.jsx"
     jsx.write_text(render(data), encoding="ascii", newline="\n")
     return data, jsx
+
+
+def verify_furi(group: dict, line: dict, main: dict, furi: dict | None) -> list[str]:
+    tag = group["name"]
+    if furi is None:
+        return [f"missing furigana layer {tag}"]
+    errs = []
+    if furi["parent"] != line["name"]:
+        errs.append(f"{tag}: parent {furi['parent']!r}")
+    if furi["text"] != group["text"]:
+        errs.append(f"{tag}: text {furi['text']!r}")
+    if [m["c"] for m in furi["markers"]] != [m["c"] for m in group["markers"]]:
+        errs.append(f"{tag}: markers {[m['c'] for m in furi['markers']]}")
+    for key in ("inPoint", "outPoint"):
+        if abs(furi[key] - main[key]) > 1e-9:
+            errs.append(f"{tag}: {key} differs from its line")
+    # sits above the line and horizontally inside it
+    ax, ay = furi["comp"]["anchor"][:2]
+    left, top = main["comp"]["topLeft"][:2]
+    right = main["comp"]["bottomRight"][0]
+    if not left - 1 <= ax <= right + 1:
+        errs.append(f"{tag}: x {ax:.1f} outside its line [{left:.1f}, {right:.1f}]")
+    if ay > top + 1:
+        errs.append(f"{tag}: bottom {ay:.1f} below the line top {top:.1f}")
+    return errs
 
 
 def verify(name: str, data: dict, result: dict) -> list[str]:
@@ -98,8 +127,9 @@ def verify(name: str, data: dict, result: dict) -> list[str]:
         for w in rr.get("aeWarnings") or []:
             errs.append(f"run {i + 1} AE warning: {w}")
     layers = {l["name"]: l for l in result.get("layers", []) if l.get("generated")}
-    if len(layers) != len(data["lines"]):
-        errs.append(f"{len(layers)} generated layers after {len(runs)} runs, expected {len(data['lines'])}")
+    expected = len(data["lines"]) + sum(len(l.get("furi", [])) for l in data["lines"])
+    if len(layers) != expected:
+        errs.append(f"{len(layers)} generated layers after {len(runs)} runs, expected {expected}")
     for keep in result.get("mustSurvive", []):
         if keep not in [l["name"] for l in result.get("layers", [])]:
             errs.append(f"layer {keep!r} was removed")
@@ -109,12 +139,14 @@ def verify(name: str, data: dict, result: dict) -> list[str]:
             errs.append(f"missing layer {line['name']}")
             continue
         tag = line["name"]
+        for group in line.get("furi", []):
+            errs += verify_furi(group, line, layer, layers.get(group["name"]))
         if layer["comment"] != line["comment"]:
             errs.append(f"{tag}: comment {layer['comment']!r}")
         if abs(layer["startTime"]) > 1e-9:
             errs.append(f"{tag}: startTime {layer['startTime']}")
         frame = 1 / result["comp"]["frameRate"]
-        tick = frame / 1000
+        tol = max(frame / 1000, 1e-4)
         for key, fkey in (("inPoint", "inFrame"), ("outPoint", "outFrame")):
             if abs(layer[key] / frame - line[fkey]) > 0.01:
                 errs.append(f"{tag}: {key} {layer[key]} is not frame {line[fkey]}")
@@ -125,8 +157,8 @@ def verify(name: str, data: dict, result: dict) -> list[str]:
             errs.append(f"{tag}: {len(got)} markers, expected {len(line['markers'])}")
             continue
         for want, have in zip(line["markers"], got):
-            # AE stores times in ticks of 1/(1000*fps) s
-            if abs(want["t"] - have["t"]) > tick or abs(want["d"] - have["d"]) > tick:
+            # AE rounds times to 1/(1000*fps) s and loses a little more precision after ~2 minutes
+            if abs(want["t"] - have["t"]) > tol or abs(want["d"] - have["d"]) > tol:
                 errs.append(f"{tag}: marker {want['c']!r} at {have['t']}+{have['d']}, expected {want['t']}+{want['d']}")
             if want["c"] != have["c"]:
                 errs.append(f"{tag}: marker comment {have['c']!r} != {want['c']!r}")
@@ -159,16 +191,9 @@ def cmd_fixtures(args) -> int:
     driver.write_text(
         "$.global.ASS2AE_HARNESS = " + json.dumps({"outDir": str(OUT), "cases": cases}, ensure_ascii=True) + ";\n"
         "$.evalFile(" + js_string(str(HERE / "harness.jsx")) + ");\n", encoding="ascii")
-    for c in cases:
-        for i in range(len(c["renderTimes"])):
-            png = OUT / f"{c['name']}_{i}.png"
-            if png.exists():
-                png.unlink()
+    for old in OUT.glob("*_[0-9]_*.png"):
+        old.unlink()
     run_jsx(driver, OUT / "harness.done", timeout=args.timeout)
-    pngs = [OUT / f"{c['name']}_{i}.png" for c in cases for i in range(len(c["renderTimes"]))]
-    t0 = time.time()
-    while not all(p.exists() for p in pngs) and time.time() - t0 < 120:
-        time.sleep(1)
     failed = 0
     for c in cases:
         result = json.loads((OUT / f"{c['name']}.result.json").read_text(encoding="utf-8"))

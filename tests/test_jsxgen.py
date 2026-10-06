@@ -138,3 +138,51 @@ def test_font_candidates_and_metrics():
 def test_alpha_warning():
     data = generate("templated.ass")
     assert not any("alpha" in w for w in data["warnings"])  # BackColour alpha is not used
+
+
+# --- furigana layers ---------------------------------------------------------
+
+def test_furigana_groups():
+    data = generate("furigana_hash.ass")
+    line = data["lines"][1]  # 頭 で
+    assert line["furiStyle"] == "K1-furigana"
+    (g,) = line["furi"]
+    assert (g["text"], g["base"], g["start"], g["end"]) == ("あたま", "頭", 0, 1)
+    assert g["name"] == "KARA_0002_F01_あたま"
+    assert g["comment"] == "[ass2ae] furi line=0002 n=01 event=2 style=K1-furigana"
+    assert [(m["t"], m["d"], m["c"]) for m in g["markers"]] == [(2, 0.1, "あ"), (2.1, 0.12, "た"), (2.22, 0.13, "ま")]
+    assert g["markers"][0]["p"] == {"kind": "furi", "base": "頭", "event": "2"}
+    # one layer per furigana syllable, base ranges in JS string indices
+    assert [(g["text"], g["start"], g["end"]) for g in data["lines"][3]["furi"]] == [("とう", 0, 1), ("きょう", 1, 2)]
+
+
+def test_zero_length_furigana_joins_next_part():
+    (g,) = generate("furigana_hash.ass")["lines"][6]["furi"]  # {\k0}漢|かん{\k20}字|じ
+    assert g["text"] == "かんじ" and (g["start"], g["end"]) == (0, 2)
+    assert [(m["c"], m["t"], m["d"]) for m in g["markers"]] == [("かんじ", 7, 0.2)]
+
+
+def test_furigana_style_from_script_or_scaled():
+    data = generate("furigana_hash.ass")
+    assert data["styles"]["K1-furigana"]["size"] == 50 and "synthetic" not in data["styles"]["K1-furigana"]
+    subs = load(str(FIXTURES / "furigana_hash.ass"))
+    del subs.styles["K1-furigana"]
+    data = build_data(subs, parse_subs(subs), Options(), "x.ass")
+    st = data["styles"]["K1-furigana"]
+    assert st["synthetic"] and st["size"] == 50 and st["outline"] == 1.5
+
+
+def test_no_furigana_option():
+    data = generate("furigana_hash.ass", Options(furigana=False))
+    assert all(l["furi"] == [] and l["furiStyle"] is None for l in data["lines"])
+    assert "K1-furigana" not in data["styles"]
+
+
+def test_js_len_counts_utf16_units():
+    from ass2ae.jsxgen import js_len
+    assert js_len("漢字") == 2 and js_len("a\U0001F600") == 3
+
+
+def test_line_seconds_for_ae_side_frames():
+    first = generate("jp_kanji_kana.ass", Options(offset=F(1, 2)))["lines"][0]
+    assert (first["start"], first["end"]) == (1.5, 3.5)

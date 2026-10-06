@@ -25,7 +25,8 @@
   "withAnimator": true,
   "newlineCounts": false,
   "fontScale": 0.7,
-  "sungColor": null
+  "sungColor": null,
+  "furiScale": 0.5
  },
  "amountExpression": "var acc = 0, amt = 0;\nfor (var k = 1; k <= marker.numKeys; k++) {\n  var m = marker.key(k), n = m.comment.length;\n  if (textIndex <= acc + n) {\n    var s = m.time + m.duration * (textIndex - acc - 1) / n;\n    amt = linear(time, s, s + m.duration / n, 0, 100);\n    break;\n  }\n  acc += n;\n}\namt;",
  "fontMetrics": {},
@@ -58,6 +59,35 @@
    "scaleX": 100,
    "scaleY": 100,
    "spacing": 0
+  },
+  "K1-furigana": {
+   "family": "Noto Sans JP",
+   "bold": false,
+   "italic": false,
+   "fauxBold": false,
+   "fauxItalic": false,
+   "fonts": [],
+   "size": 50,
+   "fill": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "stroke": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sung": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "outline": 2,
+   "scaledBorder": true,
+   "scaleX": 100,
+   "scaleY": 100,
+   "spacing": 0
   }
  },
  "lines": [
@@ -70,6 +100,8 @@
    "text": "\u6f22\u5b57",
    "inPoint": 1.001,
    "outPoint": 2.002,
+   "start": 1,
+   "end": 2,
    "inFrame": 24,
    "outFrame": 48,
    "alignment": 1,
@@ -105,6 +137,49 @@
       "fx": ""
      }
     }
+   ],
+   "furiStyle": "K1-furigana",
+   "furi": [
+    {
+     "name": "KARA_0001_F01_\u304b\u3093",
+     "comment": "[ass2ae] furi line=0001 n=01 event=1 style=K1-furigana",
+     "text": "\u304b\u3093",
+     "base": "\u6f22",
+     "start": 0,
+     "end": 1,
+     "markers": [
+      {
+       "t": 1,
+       "d": 0.2,
+       "c": "\u304b\u3093",
+       "p": {
+        "kind": "furi",
+        "base": "\u6f22",
+        "event": "1"
+       }
+      }
+     ]
+    },
+    {
+     "name": "KARA_0001_F02_\u3058",
+     "comment": "[ass2ae] furi line=0001 n=02 event=1 style=K1-furigana",
+     "text": "\u3058",
+     "base": "\u5b57",
+     "start": 1,
+     "end": 2,
+     "markers": [
+      {
+       "t": 1.2,
+       "d": 0.2,
+       "c": "\u3058",
+       "p": {
+        "kind": "furi",
+        "base": "\u5b57",
+        "event": "1"
+       }
+      }
+     ]
+    }
    ]
   },
   {
@@ -116,6 +191,8 @@
    "text": "\u982d \u3067",
    "inPoint": 2.002,
    "outPoint": 3.003,
+   "start": 2,
+   "end": 3,
    "inFrame": 48,
    "outFrame": 72,
    "alignment": 1,
@@ -164,6 +241,49 @@
       "fx": "B"
      }
     }
+   ],
+   "furiStyle": "K1-furigana",
+   "furi": [
+    {
+     "name": "KARA_0002_F01_\u3042\u305f\u307e",
+     "comment": "[ass2ae] furi line=0002 n=01 event=2 style=K1-furigana",
+     "text": "\u3042\u305f\u307e",
+     "base": "\u982d",
+     "start": 0,
+     "end": 1,
+     "markers": [
+      {
+       "t": 2,
+       "d": 0.1,
+       "c": "\u3042",
+       "p": {
+        "kind": "furi",
+        "base": "\u982d",
+        "event": "2"
+       }
+      },
+      {
+       "t": 2.1,
+       "d": 0.12,
+       "c": "\u305f",
+       "p": {
+        "kind": "furi",
+        "base": "\u982d",
+        "event": "2"
+       }
+      },
+      {
+       "t": 2.22,
+       "d": 0.13,
+       "c": "\u307e",
+       "p": {
+        "kind": "furi",
+        "base": "\u982d",
+        "event": "2"
+       }
+      }
+     ]
+    }
    ]
   },
   {
@@ -175,6 +295,8 @@
    "text": "\u4eca\u65e5\u306f",
    "inPoint": 3.003,
    "outPoint": 4.004,
+   "start": 3,
+   "end": 4,
    "inFrame": 72,
    "outFrame": 96,
    "alignment": 1,
@@ -210,6 +332,39 @@
       "fx": ""
      }
     }
+   ],
+   "furiStyle": "K1-furigana",
+   "furi": [
+    {
+     "name": "KARA_0003_F01_\u304d\u3087\u3046",
+     "comment": "[ass2ae] furi line=0003 n=01 event=3 style=K1-furigana",
+     "text": "\u304d\u3087\u3046",
+     "base": "\u4eca\u65e5",
+     "start": 0,
+     "end": 2,
+     "markers": [
+      {
+       "t": 3,
+       "d": 0.15,
+       "c": "\u304d\u3087",
+       "p": {
+        "kind": "furi",
+        "base": "\u4eca\u65e5",
+        "event": "3"
+       }
+      },
+      {
+       "t": 3.15,
+       "d": 0.15,
+       "c": "\u3046",
+       "p": {
+        "kind": "furi",
+        "base": "\u4eca\u65e5",
+        "event": "3"
+       }
+      }
+     ]
+    }
    ]
   },
   {
@@ -221,6 +376,8 @@
    "text": "\u6771\u4eac",
    "inPoint": 4.004,
    "outPoint": 5.005,
+   "start": 4,
+   "end": 5,
    "inFrame": 96,
    "outFrame": 120,
    "alignment": 1,
@@ -256,6 +413,49 @@
       "fx": ""
      }
     }
+   ],
+   "furiStyle": "K1-furigana",
+   "furi": [
+    {
+     "name": "KARA_0004_F01_\u3068\u3046",
+     "comment": "[ass2ae] furi line=0004 n=01 event=4 style=K1-furigana",
+     "text": "\u3068\u3046",
+     "base": "\u6771",
+     "start": 0,
+     "end": 1,
+     "markers": [
+      {
+       "t": 4,
+       "d": 0.1,
+       "c": "\u3068\u3046",
+       "p": {
+        "kind": "furi",
+        "base": "\u6771",
+        "event": "4"
+       }
+      }
+     ]
+    },
+    {
+     "name": "KARA_0004_F02_\u304d\u3087\u3046",
+     "comment": "[ass2ae] furi line=0004 n=02 event=4 style=K1-furigana",
+     "text": "\u304d\u3087\u3046",
+     "base": "\u4eac",
+     "start": 1,
+     "end": 2,
+     "markers": [
+      {
+       "t": 4.1,
+       "d": 0.1,
+       "c": "\u304d\u3087\u3046",
+       "p": {
+        "kind": "furi",
+        "base": "\u4eac",
+        "event": "4"
+       }
+      }
+     ]
+    }
    ]
   },
   {
@@ -267,6 +467,8 @@
    "text": "\u3042",
    "inPoint": 5.005,
    "outPoint": 6.006,
+   "start": 5,
+   "end": 6,
    "inFrame": 120,
    "outFrame": 144,
    "alignment": 1,
@@ -289,7 +491,9 @@
       "fx": ""
      }
     }
-   ]
+   ],
+   "furiStyle": null,
+   "furi": []
   },
   {
    "n": 6,
@@ -300,6 +504,8 @@
    "text": "#a",
    "inPoint": 6.006,
    "outPoint": 7.007,
+   "start": 6,
+   "end": 7,
    "inFrame": 144,
    "outFrame": 168,
    "alignment": 1,
@@ -335,7 +541,9 @@
       "fx": ""
      }
     }
-   ]
+   ],
+   "furiStyle": null,
+   "furi": []
   },
   {
    "n": 7,
@@ -346,6 +554,8 @@
    "text": "\u6f22\u5b57",
    "inPoint": 7.007,
    "outPoint": 8.008,
+   "start": 7,
+   "end": 8,
    "inFrame": 168,
    "outFrame": 192,
    "alignment": 1,
@@ -367,6 +577,29 @@
       "event": "7",
       "fx": ""
      }
+    }
+   ],
+   "furiStyle": "K1-furigana",
+   "furi": [
+    {
+     "name": "KARA_0007_F01_\u304b\u3093\u3058",
+     "comment": "[ass2ae] furi line=0007 n=01 event=7 style=K1-furigana",
+     "text": "\u304b\u3093\u3058",
+     "base": "\u6f22\u5b57",
+     "start": 0,
+     "end": 2,
+     "markers": [
+      {
+       "t": 7,
+       "d": 0.2,
+       "c": "\u304b\u3093\u3058",
+       "p": {
+        "kind": "furi",
+        "base": "\u6f22\u5b57",
+        "event": "7"
+       }
+      }
+     ]
     }
    ]
   }
@@ -601,16 +834,17 @@
 
     function targetComp() {
         var item = app.project ? app.project.activeItem : null;
-        var forced = $.global.ASS2AE_TARGET;  // test hook: a CompItem, or "new"
+        // Set by driver scripts (project builder, tests): a CompItem to fill, or "new".
+        var forced = $.global.ASS2AE_TARGET;
         if (forced === "new") {
             item = null;
         } else if (forced) {
-            item = forced;
+            return forced;
         }
         if (item !== null && item instanceof CompItem) {
             if (!fpsMatches(item)) {
-                warn("Active comp runs at " + item.frameRate + " fps but in/out points were computed for " +
-                     DATA.comp.fpsText + " fps");
+                warn("Active comp runs at " + item.frameRate + " fps, not " + DATA.comp.fpsText +
+                     "; in/out points follow the comp's frames");
             }
             if (item.duration < DATA.comp.duration) {
                 warn("Active comp is shorter (" + item.duration + "s) than the lyrics (" + DATA.comp.duration + "s)");
@@ -618,10 +852,8 @@
             return item;
         }
         if (!app.project) { app.newProject(); }
-        var comp = app.project.items.addComp(DATA.comp.name, DATA.comp.width, DATA.comp.height, 1,
-                                             DATA.comp.duration, DATA.comp.fps);
-        comp.openInViewer();
-        return comp;
+        return app.project.items.addComp(DATA.comp.name, DATA.comp.width, DATA.comp.height, 1,
+                                         DATA.comp.duration, DATA.comp.fps);
     }
 
     function removeGenerated(comp) {
@@ -638,7 +870,15 @@
     }
 
     function findTemplate(comp, styleName) {
-        var names = [DATA.options.template + "_" + styleName, DATA.options.template];
+        return findNamed(comp, [DATA.options.template + "_" + styleName, DATA.options.template]);
+    }
+
+    function findFuriTemplate(comp, styleName) {
+        return findNamed(comp, [DATA.options.template + "_FURI_" + styleName, DATA.options.template + "_FURI"]);
+    }
+
+    // First text layer (not generated by us) whose name is in names, in order of preference.
+    function findNamed(comp, names) {
         for (var n = 0; n < names.length; n++) {
             for (var i = 1; i <= comp.numLayers; i++) {
                 var layer = comp.layer(i);
@@ -670,7 +910,11 @@
         }
     }
 
-    function styleTextDocument(td, line, st, font, sy) {
+    function vscaleOf(td) {
+        try { return td.verticalScale || 1; } catch (e) { return 1; }
+    }
+
+    function styleTextDocument(td, justify, st, font, sy) {
         try { td.resetCharStyle(); } catch (e1) {}
         try { td.resetParagraphStyle(); } catch (e2) {}
         if (font) { td.font = font.ps; }
@@ -687,7 +931,7 @@
         } else {
             td.applyStroke = false;
         }
-        td.justification = JUSTIFY[line.justify];
+        td.justification = JUSTIFY[justify];
         if (st.fauxBold) { trySet(td, "fauxBold", true, "bold"); }
         if (st.fauxItalic) { trySet(td, "fauxItalic", true, "italic"); }
         if (st.spacing !== 0) { trySet(td, "tracking", st.spacing * sy / em * 1000, "spacing"); }
@@ -703,58 +947,99 @@
         for (var k = mk.numKeys; k >= 1; k--) { mk.removeKey(k); }
     }
 
+    // Copy of a template text layer with new text (scale shrinks font size and stroke).
+    function templateCopy(tmpl, text, scale) {
+        var layer = tmpl.duplicate();
+        layer.locked = false;
+        layer.enabled = true;
+        layer.guideLayer = false;
+        clearMarkers(layer);
+        var tprop = textDocProp(layer);
+        if (tprop.numKeys > 0) {
+            warnOnce("tmplkeys " + tmpl.name, "Template " + tmpl.name + " has Source Text keyframes; they were removed on the copies");
+            for (var k = tprop.numKeys; k >= 1; k--) { tprop.removeKey(k); }
+        }
+        var tdoc = tprop.value;
+        tdoc.text = text;
+        if (scale !== 1) {
+            tdoc.fontSize = tdoc.fontSize * scale;
+            if (tdoc.applyStroke) { tdoc.strokeWidth = tdoc.strokeWidth * scale; }
+        }
+        tprop.setValue(tdoc);
+        var metrics = DATA.fontMetrics[tdoc.font] || readFontMetrics(tdoc.fontLocation, tdoc.font);
+        if (!metrics) {
+            warnOnce("tmplmetrics " + tdoc.font, "No metrics for template font " + tdoc.font +
+                     "; vertical alignment uses the text box");
+        }
+        return { layer: layer, metrics: metrics };
+    }
+
+    // New text layer styled from an ASS style.
+    function styledText(comp, text, styleKey, justify, sy) {
+        var st = DATA.styles[styleKey];
+        var layer = comp.layers.addText(text);
+        var font = resolveFont(styleKey, st);
+        var prop = textDocProp(layer);
+        var td = prop.value;
+        styleTextDocument(td, justify, st, font, sy);
+        prop.setValue(td);
+        return { layer: layer, metrics: font ? font.metrics : null };
+    }
+
+    function setTiming(comp, layer, line) {
+        layer.startTime = 0;
+        // libass shows a line on frames whose time t satisfies start <= t < end, so the in point
+        // is the first frame at or after start. AE keeps its own frame grid (a 23.976 comp is
+        // exactly 23.976 fps), so in/out are always whole frames of the target comp.
+        var inF = line.inFrame, outF = line.outFrame;
+        if (!fpsMatches(comp)) {
+            inF = Math.ceil(line.start / comp.frameDuration - 1e-6);
+            outF = Math.ceil(line.end / comp.frameDuration - 1e-6);
+            if (outF <= inF) { outF = inF + 1; }
+        }
+        var inP = inF * comp.frameDuration, outP = outF * comp.frameDuration;
+        // On text layers, setting inPoint keeps the layer's length (the out point moves
+        // with it), so set the in point first and trim the out point afterwards.
+        layer.inPoint = inP;
+        layer.outPoint = outP;
+    }
+
     function createLayer(comp, line, sy) {
-        var st = DATA.styles[line.style];
-        var layer = null, font = null, metrics = null;
+        var res = null;
         if (DATA.options.styleMode === "template") {
             var tmpl = findTemplate(comp, line.style);
             if (tmpl) {
-                layer = tmpl.duplicate();
-                layer.locked = false;
-                layer.enabled = true;
-                layer.guideLayer = false;
-                clearMarkers(layer);
-                var tprop = textDocProp(layer);
-                if (tprop.numKeys > 0) {
-                    warnOnce("tmplkeys", "Template " + tmpl.name + " has Source Text keyframes; they were removed on the copies");
-                    for (var k = tprop.numKeys; k >= 1; k--) { tprop.removeKey(k); }
-                }
-                var tdoc = tprop.value;
-                tdoc.text = line.text;
-                tprop.setValue(tdoc);
-                metrics = DATA.fontMetrics[tdoc.font] || readFontMetrics(tdoc.fontLocation, tdoc.font);
-                if (!metrics) {
-                    warnOnce("tmplmetrics " + tdoc.font, "No metrics for template font " + tdoc.font +
-                             "; vertical alignment uses the text box");
-                }
+                res = templateCopy(tmpl, line.text, 1);
             } else {
                 warnOnce("tmpl " + line.style, "No " + DATA.options.template + "_" + line.style + " or " +
                          DATA.options.template + " text layer in the comp; style " + line.style + " uses ASS styling");
             }
         }
-        if (!layer) {
-            layer = comp.layers.addText(line.text);
-            font = resolveFont(line.style, st);
-            metrics = font ? font.metrics : null;
-            var prop = textDocProp(layer);
-            var td = prop.value;
-            styleTextDocument(td, line, st, font, sy);
-            prop.setValue(td);
+        if (!res) { res = styledText(comp, line.text, line.style, line.justify, sy); }
+        res.layer.name = line.name;
+        res.layer.comment = line.comment;
+        setTiming(comp, res.layer, line);
+        return res;
+    }
+
+    // Template mode: <template>_FURI_<style>, <template>_FURI, else the line's template at
+    // half size (karaskel's furigana scale). ASS mode: the "<style>-furigana" style.
+    function createFuri(comp, line, group, sy) {
+        var res = null;
+        if (DATA.options.styleMode === "template") {
+            var ft = findFuriTemplate(comp, line.style);
+            if (ft) {
+                res = templateCopy(ft, group.text, 1);
+            } else {
+                var mt = findTemplate(comp, line.style);
+                if (mt) { res = templateCopy(mt, group.text, DATA.options.furiScale); }
+            }
         }
-        layer.name = line.name;
-        layer.comment = line.comment;
-        layer.startTime = 0;
-        var inP = line.inPoint, outP = line.outPoint;
-        if (fpsMatches(comp)) {
-            // AE keeps its own frame grid (a 23.976 comp is exactly 23.976 fps): use its frame times
-            inP = line.inFrame * comp.frameDuration;
-            outP = line.outFrame * comp.frameDuration;
-        }
-        // On text layers, setting inPoint keeps the layer's length (the out point moves
-        // with it), so set the in point first and trim the out point afterwards.
-        layer.inPoint = inP;
-        layer.outPoint = outP;
-        return { layer: layer, metrics: metrics };
+        if (!res) { res = styledText(comp, group.text, line.furiStyle, "center", sy); }
+        res.layer.name = group.name;
+        res.layer.comment = group.comment;
+        setTiming(comp, res.layer, line);
+        return res;
     }
 
     // Anchor the text box at the ASS alignment point: horizontally from the
@@ -769,8 +1054,7 @@
         var ay;
         var base = baselines(td);
         if (metrics && base) {
-            var vscale = 1;
-            try { if (td.verticalScale) { vscale = td.verticalScale; } } catch (e) {}
+            var vscale = vscaleOf(td);
             var asc = td.fontSize * metrics.asc * vscale;
             var desc = td.fontSize * metrics.desc * vscale;
             if (line.alignment <= 3) {
@@ -806,6 +1090,87 @@
             return { first: locs[1], last: locs[locs.length - 1] };
         }
         return null;
+    }
+
+    // ------------------------------------------------------------- furigana ---
+
+    var SENTINEL = "|";
+
+    function rightEdge(layer) {
+        var r = layer.sourceRectAtTime(0, false);
+        return r.left + r.width;
+    }
+
+    // Left-justified layer with the main layer's text style, to measure advance widths:
+    // advance(s) = right edge of s + "|" minus right edge of "|" alone.
+    function makeRuler(comp, source) {
+        var layer = comp.layers.addText(SENTINEL);
+        var td = textDocProp(source).value;
+        td.justification = ParagraphJustification.LEFT_JUSTIFY;
+        td.text = SENTINEL;
+        textDocProp(layer).setValue(td);
+        return { layer: layer, base: rightEdge(layer) };
+    }
+
+    function advance(ruler, s) {
+        if (!s) { return 0; }
+        var prop = textDocProp(ruler.layer);
+        var td = prop.value;
+        td.text = s + SENTINEL;
+        prop.setValue(td);
+        return rightEdge(ruler.layer) - ruler.base;
+    }
+
+    // Parent the furigana to its line and centre it above the base syllable, its line box
+    // bottom on the top of the main line box (baseline - ascent).
+    function placeFuri(main, mainMetrics, furi, furiMetrics, group, line, ruler) {
+        var t = line.inPoint;
+        var mtd = textDocProp(main).valueAtTime(t, false);
+        var text = String(mtd.text);
+        var k = 0, lineStart = 0, i;
+        for (i = 0; i < group.start; i++) {
+            if (text.charAt(i) === "\r") {
+                k++;
+                lineStart = i + 1;
+            }
+        }
+        var lineEnd = lineStart;
+        while (lineEnd < text.length && text.charAt(lineEnd) !== "\r") { lineEnd++; }
+        var a = advance(ruler, text.substring(lineStart, group.start));
+        var b = advance(ruler, text.substring(lineStart, group.end));
+        var locs = null;
+        try { locs = mtd.baselineLocs; } catch (e) { locs = null; }
+        var x0, baseY, firstBase = 0;
+        if (locs && locs.length >= 4 * (k + 1)) {
+            x0 = locs[4 * k];
+            baseY = locs[4 * k + 1];
+            firstBase = locs[1];
+        } else {
+            warnOnce("nolocs", "TextDocument.baselineLocs is unavailable; furigana positions are estimated");
+            var w = advance(ruler, text.substring(lineStart, lineEnd));
+            var j = mtd.justification;
+            x0 = j === ParagraphJustification.CENTER_JUSTIFY ? -w / 2 : (j === ParagraphJustification.RIGHT_JUSTIFY ? -w : 0);
+            baseY = k * mtd.leading;
+        }
+        var top;
+        if (mainMetrics) {
+            top = baseY - mtd.fontSize * mainMetrics.asc * vscaleOf(mtd);
+        } else {
+            top = main.sourceRectAtTime(t, false).top + (baseY - firstBase);
+        }
+        var ftd = textDocProp(furi).valueAtTime(t, false);
+        var fr = furi.sourceRectAtTime(t, false);
+        var fb = baselines(ftd);
+        var ax = fr.left + fr.width / 2;
+        var ay = (furiMetrics && fb) ? fb.last + ftd.fontSize * furiMetrics.desc * vscaleOf(ftd) : fr.top + fr.height;
+        try {
+            furi.setParentWithJump(main);  // keep the copy's own transform values
+        } catch (e2) {
+            furi.parent = main;
+        }
+        var tr = furi.property(MN.transform);
+        setStatic(tr.property(MN.anchor), [ax, ay]);
+        setStatic(tr.property(MN.position), [x0 + (a + b) / 2, top]);
     }
 
     function addMarkers(layer, markers) {
@@ -879,12 +1244,14 @@
         var sx = comp.width / DATA.playRes[0];
         var sy = comp.height / DATA.playRes[1];
         var made = [];
+        var last = null, furiCount = 0;
         for (var i = 0; i < DATA.lines.length; i++) {
             var line = DATA.lines[i];
             var res = createLayer(comp, line, sy);
             // keep the block in order (KARA_0001 on top) wherever the first layer landed:
             // the comp top for new text layers, just above the template for copies
-            if (made.length) { res.layer.moveAfter(made[made.length - 1].layer); }
+            if (last) { res.layer.moveAfter(last); }
+            last = res.layer;
             placeLayer(res.layer, line, res.metrics, sx, sy);
             if (line.markers.length) {
                 addMarkers(res.layer, line.markers);
@@ -893,12 +1260,32 @@
                 }
             }
             made.push({ layer: res.layer, line: line });
+            var groups = line.furi || [];
+            if (groups.length) {
+                var ruler = makeRuler(comp, res.layer);
+                for (var g = 0; g < groups.length; g++) {
+                    var fres = createFuri(comp, line, groups[g], sy);
+                    fres.layer.moveBefore(res.layer);
+                    placeFuri(res.layer, res.metrics, fres.layer, fres.metrics, groups[g], line, ruler);
+                    if (groups[g].markers.length) {
+                        addMarkers(fres.layer, groups[g].markers);
+                        if (DATA.options.withAnimator) {
+                            addAnimator(fres.layer, DATA.options.sungColor || DATA.styles[line.furiStyle].sung);
+                        }
+                    }
+                    made.push({ layer: fres.layer, line: groups[g] });
+                    furiCount++;
+                }
+                ruler.layer.remove();
+            }
         }
         var markerCount = 0;
         for (var j = 0; j < made.length; j++) {
             if (made[j].line.markers.length) { markerCount += selfCheck(made[j].layer, made[j].line); }
         }
-        return { comp: comp.name, compId: comp.id, layers: made.length, markers: markerCount, removed: removed };
+        try { comp.openInViewer(); } catch (e) {}
+        return { comp: comp.name, compId: comp.id, layers: made.length - furiCount, furigana: furiCount,
+                 markers: markerCount, removed: removed };
     }
 
     var summary = null;
@@ -918,7 +1305,8 @@
     }
     var msg = "ass2ae: " + DATA.source + "\n";
     if (summary) {
-        msg += "Comp: " + summary.comp + "\nLayers: " + summary.layers + "   Markers: " + summary.markers +
+        msg += "Comp: " + summary.comp + "\nLayers: " + summary.layers + "   Furigana: " + summary.furigana +
+               "   Markers: " + summary.markers +
                "   Replaced: " + summary.removed + "\n";
     }
     msg += "Warnings: " + all.length;

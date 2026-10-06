@@ -16,6 +16,9 @@ test = ["pytest>=7"]
 [project.scripts]
 ass2ae = "ass2ae.cli:main"
 
+[project.gui-scripts]
+ass2ae-gui = "ass2ae.gui:main"
+
 [tool.setuptools]
 packages = ["ass2ae"]
 
