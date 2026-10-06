@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+tests/js/node_modules/
+tests/js/package-lock.json
+tools/ae/out/
+# written by After Effects when it is launched from this folder
+gude-*.log

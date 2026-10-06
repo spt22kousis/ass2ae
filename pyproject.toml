@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ass2ae"
+version = "0.1.0"
+description = "Convert Aegisub karaoke (.ass k-timed) subtitles into an After Effects JSX: text layers with per-syllable markers"
+requires-python = ">=3.10"
+dependencies = ["pysubs2>=1.6"]
+
+[project.optional-dependencies]
+fonts = ["fonttools>=4.0"]
+test = ["pytest>=7"]
+
+[project.scripts]
+ass2ae = "ass2ae.cli:main"
+
+[tool.setuptools]
+packages = ["ass2ae"]
+
+[tool.setuptools.package-data]
+ass2ae = ["runtime.jsx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

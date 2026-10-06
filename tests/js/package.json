@@ -1,0 +1,9 @@
+{
+  "name": "ass2ae-es3-check",
+  "private": true,
+  "description": "Dev-only: parse generated JSX as ECMAScript 3 with acorn",
+  "dependencies": {
+    "acorn": "^8.12.0",
+    "acorn-walk": "^8.3.0"
+  }
+}
