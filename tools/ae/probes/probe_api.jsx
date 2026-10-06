@@ -7,7 +7,6 @@
     var T = AETEST;
     var R = {};
     var made = [];
-    var keepComps = [];  // needed until the asynchronous frame render is done
 
     function section(name, fn) {
         try { R[name] = fn(); } catch (e) { R[name] = { error: e.toString(), line: e.line }; }
@@ -279,17 +278,12 @@
         var b = new MarkerValue("CD"); b.duration = 1; mk.setValueAtTime(1, b);
         var spec = "var acc = 0, amt = 0;\nfor (var k = 1; k <= marker.numKeys; k++) {\n  var m = marker.key(k), n = m.comment.length;\n  if (textIndex <= acc + n) {\n    var s = m.time + m.duration * (textIndex - acc - 1) / n;\n    amt = linear(time, s, s + m.duration / n, 0, 100);\n    break;\n  }\n  acc += n;\n}\namt;";
         var amount = addAnimator(s, [1, 0, 0], spec);
-        var png = new File(outDir + "/probe_textindex.png");
-        if (png.exists) { png.remove(); }
-        c.saveFrameToPng(0.75, png);  // written after the script returns
-        keepComps.push(c);
-        return { png: png.fsName, specError: amount.expressionError };
+        var frame = T.renderFrame(c, 0.75, outDir + "/probe_textindex");
+        return { frame: frame, specError: amount.expressionError };
     });
 
     for (var m = made.length - 1; m >= 0; m--) {
-        var keep = false;
-        for (var kc = 0; kc < keepComps.length; kc++) { if (keepComps[kc] === made[m]) { keep = true; } }
-        if (!keep) { try { made[m].remove(); } catch (e) {} }
+        try { made[m].remove(); } catch (e) {}
     }
     T.writeText(outDir + "/probe_api.json", T.toJson(R));
     T.writeText(outDir + "/probe_api.done", "ok");

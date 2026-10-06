@@ -1591,6 +1591,14 @@
                  markers: markerCount, removed: removed };
     }
 
+    // Redirect the viewer to a tiny dummy comp so AE does not re-render
+    // the target on every layer change (extremely slow with video).
+    var _redirect = null;
+    try {
+        _redirect = app.project.items.addComp("_ass2ae_redirect_", 4, 4, 1, 1, 1);
+        _redirect.openInViewer();
+    } catch (e) {}
+
     var summary = null;
     app.beginUndoGroup("ass2ae: " + DATA.source);
     try {
@@ -1600,6 +1608,7 @@
     } finally {
         app.endUndoGroup();
     }
+    if (_redirect) { try { _redirect.remove(); } catch (e) {} }
 
     var all = DATA.warnings.concat(warnings);
     if ($.global.ASS2AE_HEADLESS) {
