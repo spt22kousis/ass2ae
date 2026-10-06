@@ -10,3 +10,4 @@ tests/js/package-lock.json
 tools/ae/out/
 # written by After Effects when it is launched from this folder
 gude-*.log
+ass_example/
