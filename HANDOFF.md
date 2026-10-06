@@ -26,8 +26,8 @@
 
 1. **完整 AE 回歸測試（加了振假名之後）**
    - 已跑完並驗證通過：jp_ass、jp_template、en_ass、furi_ass、kk_ass、snooze_template。templated_ass 只有一個預期內的警告：noK 樣式的字型 Noto Serif CJK JP Black 這台沒裝。
-   - **snooze_ass 沒跑完**：runner 等了 900 秒逾時，之後 AE 也關了。加了檢視器重導向後應該能跑完，要用 `python tools/ae/run_in_ae.py fixtures --only snooze_ass` 重跑。
-   - kk_ass 一個案例就花了約 7 分鐘（兩次執行）。慢的是第二次重跑：合成已經開在檢視器裡。加了檢視器重導向後要重新量時間。
+   - **snooze_ass 沒跑完**：runner 等了 900 秒逾時，之後 AE 也關了。加了檢視器重導向後應該能跑完。上一任 agent 剛要跑就被終止了，請接手後執行：`python tools/ae/run_in_ae.py fixtures --only snooze_ass`。
+   - kk_ass 一個案例就花了約 7 分鐘（兩次執行）。慢的是第二次重跑：合成已經開在檢視器裡。上一任 agent 剛要重新量時間就被終止了，請接手後執行：`python tools/ae/run_in_ae.py fixtures --only kk_ass`。
 2. **GUI 尚未用真人點擊做端到端測試**：只測過畫面截圖、exe 開關，以及同一套流程的命令列模式。建議請使用者用 exe 選 snooze.ass 加 snooze.mp4 實際按一次。
 3. **小問題**
    - 打包版的命令列在 Git Bash 裡印日文警告會亂碼（主控台編碼 cp950 對 UTF-8）。GUI 不受影響。
