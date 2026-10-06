@@ -22,11 +22,10 @@
 
 ## 進行中／未完成
 
-1. **完整 AE 回歸測試還沒看到結果**
-   - 加了振假名、改了入出點的計算方式（fps 不同時改由 JSX 依合成 fps 算影格）之後，跑了 `python tools/ae/run_in_ae.py fixtures`，輸出寫在 `tools/ae/out/full_run.txt`（被 .gitignore 忽略）。
-   - 前 5 個案例（jp_ass、jp_template、en_ass、furi_ass、templated_ass）在 16:04 已寫出結果檔，但 OK 與否要看 full_run.txt。
-   - kk_ass（87 層＋235 個振假名層）跑得很慢。
-   - 要做的事：看結果，如果沒跑完就用 `--only` 分開重跑。
+1. **完整 AE 回歸測試（加了振假名之後）**
+   - 已跑完並驗證通過：jp_ass、jp_template、en_ass、furi_ass、kk_ass、snooze_template。templated_ass 只有一個預期內的警告：noK 樣式的字型 Noto Serif CJK JP Black 這台沒裝。
+   - **snooze_ass 沒跑完**：runner 等了 900 秒逾時，之後 AE 也關了。要用 `python tools/ae/run_in_ae.py fixtures --only snooze_ass` 重跑。
+   - kk_ass 一個案例就花了約 7 分鐘（兩次執行）。慢的是第二次重跑：合成已經開在檢視器裡，見下一項。
 2. **效能：對「開在檢視器裡」的合成執行時非常慢**
    - 實測：snooze（有 60fps HEVC 影片）的合成開在檢視器裡時，跑 13 分鐘以上都沒完成，AE 吃到 10GB 記憶體。同樣內容用新專案、最後才打開合成的流程，只要約 30 秒。
    - 已改：runtime 新建合成時，改成全部建完才 `openInViewer()`。
