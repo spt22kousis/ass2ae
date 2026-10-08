@@ -8,10 +8,12 @@ sees the saved project.
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import re
 import subprocess
+import sys
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -145,13 +147,83 @@ def find_afterfx() -> list[Path]:
     return sorted(found, key=lambda p: (ae_year(p) or 0, str(p)), reverse=True)
 
 
-def afterfx_running() -> bool:
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+
+
+def afterfx_pids() -> list[int]:
     try:
-        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq AfterFX.exe", "/NH"], capture_output=True,
-                             text=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq AfterFX.exe", "/FO", "CSV", "/NH"],
+                             capture_output=True, text=True, creationflags=_NO_WINDOW).stdout
     except OSError:
-        return False
-    return "AfterFX.exe" in out
+        return []
+    return [int(row[1]) for row in csv.reader(out.splitlines())
+            if len(row) > 1 and row[0].lower() == "afterfx.exe" and row[1].isdigit()]
+
+
+def afterfx_running() -> bool:
+    return bool(afterfx_pids())
+
+
+def afterfx_windows() -> list[str]:
+    """Titles of After Effects' visible top-level windows."""
+    pids = set(afterfx_pids())
+    if not pids or sys.platform != "win32":
+        return []
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    titles: list[str] = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def visit(hwnd, _lparam):
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value in pids and user32.IsWindowVisible(hwnd):
+            buf = ctypes.create_unicode_buffer(user32.GetWindowTextLengthW(hwnd) + 1)
+            user32.GetWindowTextW(hwnd, buf, len(buf))
+            titles.append(buf.value)
+        return True
+
+    user32.EnumWindows(visit, 0)
+    return titles
+
+
+def afterfx_ready() -> bool:
+    """AE's main window ("Adobe After Effects 2025 - Untitled Project.aep") is up."""
+    return any(t.startswith("Adobe After Effects") and " - " in t for t in afterfx_windows())
+
+
+def spawn(args: list[str]) -> None:
+    """Start a process that outlives this one: outside our job object when that is allowed
+    (the venv launcher and some terminals kill their job's processes when they exit)."""
+    kw = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    try:
+        subprocess.Popen(args, creationflags=_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB, **kw)
+    except OSError:  # the job does not allow breakaway
+        subprocess.Popen(args, creationflags=_NO_WINDOW, **kw)
+
+
+def start_afterfx(afterfx: str | Path, timeout: float = 900, settle: float = 3.0) -> None:
+    """Start AE without a script and wait for its main window, unless it is already running.
+
+    AE quits after the script it was cold-started with (`AfterFX.exe -r` while AE is not
+    running), which would close the project right after it is built. A script sent to an
+    AE that is already running leaves it open. AE may first ask something (crash repair
+    after a forced quit, licensing); a script sent meanwhile is lost, so this waits."""
+    if afterfx_running():
+        return
+    spawn([str(afterfx)])
+    t0 = time.time()
+    while not afterfx_ready():
+        if time.time() - t0 > timeout:
+            if not afterfx_running():
+                raise RuntimeError("After Effects did not start")
+            raise RuntimeError("After Effects started but its main window did not appear; "
+                               "answer any dialog it shows, then try again")
+        time.sleep(1)
+    time.sleep(settle)
 
 
 # ------------------------------------------------------------------ building
@@ -219,10 +291,10 @@ def prepare(ass: str | Path, video: str | Path, aep: str | Path, opts: Options,
 
 
 def launch(job: Job, afterfx: str | Path) -> None:
-    """Hand the driver to AE (starting AE if needed). Returns immediately."""
+    """Hand the driver to AE, starting AE first if needed (that part can take a minute)."""
+    start_afterfx(afterfx)
     job.started = time.time()
-    subprocess.Popen([str(afterfx), "-r", str(job.driver)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    spawn([str(afterfx), "-r", str(job.driver)])
 
 
 def poll(job: Job, grace: float = 5.0) -> BuildResult | None:

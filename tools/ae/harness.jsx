@@ -1,5 +1,10 @@
 // Runs generated ass2ae JSX files inside After Effects and dumps what they built.
 // Driven by tools/ae/run_in_ae.py (config in $.global.ASS2AE_HARNESS). ES3.
+//
+// Two passes, run as separate scripts. Pass 1 converts every case into its comp, naming the
+// target as the project builder does; the converter opens the comp in the viewer after the
+// script. Pass 2 runs each case again on the comp open in the viewer, as a user re-running
+// the script on the active comp, then renders frames and dumps the layers.
 (function () {
     var H = $.global.ASS2AE_HARNESS;
     var outDir = H.outDir;
@@ -11,10 +16,14 @@
     function startsWith(s, p) { return typeof s === "string" && s.substr(0, p.length) === p; }
 
     // remove comps left over from earlier harness runs
-    for (var i = app.project.numItems; i >= 1; i--) {
-        var it = app.project.item(i);
-        if (it instanceof CompItem && startsWith(it.name, PREFIX)) { it.remove(); }
+    if (H.pass === 1) {
+        $.global.ASS2AE_HARNESS_STATE = {};
+        for (var i = app.project.numItems; i >= 1; i--) {
+            var it = app.project.item(i);
+            if (it instanceof CompItem && startsWith(it.name, PREFIX)) { it.remove(); }
+        }
     }
+    var STATE = $.global.ASS2AE_HARNESS_STATE;
 
     function addTemplate(comp, name, font, fill) {
         var t = comp.layers.addText("TEMPLATE");
@@ -105,43 +114,47 @@
         return o;
     }
 
+    function runCase(cs, comp, viaViewer) {
+        $.global.ASS2AE_HEADLESS = true;
+        $.global.ASS2AE_RESULT = null;
+        if (viaViewer) {
+            comp.openInViewer();  // already open since pass 1: this only brings it to the front
+            $.global.ASS2AE_TARGET = null;
+        } else {
+            $.global.ASS2AE_TARGET = comp ? comp : "new";
+        }
+        var t0 = new Date().getTime();
+        var run = { viaViewer: viaViewer };
+        try {
+            $.evalFile(cs.jsx);
+            run.result = $.global.ASS2AE_RESULT;
+        } catch (e) {
+            run.error = e.toString() + " line " + e.line;
+        }
+        run.seconds = (new Date().getTime() - t0) / 1000;
+        var active = app.project.activeItem;
+        run.activeAfter = active ? active.name : null;
+        return run;
+    }
+
     for (var c = 0; c < H.cases.length; c++) {
         var cs = H.cases[c];
-        var res = { name: cs.name, runs: [], mustSurvive: [] };
-        var comp = null;
+        var res, comp = null;
         try {
-            if (cs.mode === "template") {
-                comp = templateComp(cs.name, cs.duration);
-                res.mustSurvive = ["KARA_TEMPLATE", "KARA_TEMPLATE_K1", "USER_BG"];
+            if (H.pass === 1) {
+                res = { name: cs.name, runs: [], mustSurvive: [] };
+                if (cs.mode === "template") {
+                    comp = templateComp(cs.name, cs.duration);
+                    res.mustSurvive = ["KARA_TEMPLATE", "KARA_TEMPLATE_K1", "USER_BG"];
+                }
+                res.runs.push(runCase(cs, comp, false));
+                var sum = $.global.ASS2AE_RESULT && $.global.ASS2AE_RESULT.summary;
+                STATE[cs.name] = { res: res, compId: comp ? comp.id : (sum ? sum.compId : null) };
+                continue;
             }
-            for (var r = 0; r < cs.runs; r++) {
-                $.global.ASS2AE_HEADLESS = true;
-                $.global.ASS2AE_RESULT = null;
-                // The first run names its target (as the project builder does); later runs use
-                // the comp open in the viewer, like a user running the script on the active comp.
-                var viaViewer = r > 0 && comp;
-                if (viaViewer) {
-                    comp.openInViewer();
-                    $.global.ASS2AE_TARGET = null;
-                } else {
-                    $.global.ASS2AE_TARGET = comp ? comp : "new";
-                }
-                var t0 = new Date().getTime();
-                var run = { viaViewer: !!viaViewer };
-                try {
-                    $.evalFile(cs.jsx);
-                    run.result = $.global.ASS2AE_RESULT;
-                } catch (e) {
-                    run.error = e.toString() + " line " + e.line;
-                }
-                run.seconds = (new Date().getTime() - t0) / 1000;
-                var active = app.project.activeItem;
-                run.activeAfter = active ? active.name : null;
-                res.runs.push(run);
-                if (!comp && $.global.ASS2AE_RESULT && $.global.ASS2AE_RESULT.summary) {
-                    comp = app.project.itemByID($.global.ASS2AE_RESULT.summary.compId);
-                }
-            }
+            res = STATE[cs.name].res;
+            comp = app.project.itemByID(STATE[cs.name].compId);
+            for (var r = 1; r < cs.runs; r++) { res.runs.push(runCase(cs, comp, true)); }
             res.leftovers = [];
             for (var it2 = 1; it2 <= app.project.numItems; it2++) {
                 if (app.project.item(it2).name === "_ass2ae_redirect_") { res.leftovers.push(it2); }
@@ -154,11 +167,12 @@
             res.layers = [];
             for (var li = 1; li <= comp.numLayers; li++) { res.layers.push(dumpLayer(comp.layer(li))); }
         } catch (err) {
+            res = res || { name: cs.name, runs: [] };
             res.error = err.toString() + " line " + err.line;
         }
         T.writeText(outDir + "/" + cs.name + ".result.json", T.toJson(res));
     }
     $.global.ASS2AE_HEADLESS = false;
     $.global.ASS2AE_TARGET = null;
-    T.writeText(outDir + "/harness.done", "ok");
+    T.writeText(outDir + "/harness_" + H.pass + ".done", "ok");
 })();

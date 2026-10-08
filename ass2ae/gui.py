@@ -317,7 +317,7 @@ class App(tk.Tk):
             for name, st in job.data["styles"].items():
                 ps = st["fonts"][0]["ps"] if st["fonts"] else "（AE 會再找一次）"
                 post(("log", f"樣式 {name}：字型 {st['family']} → {ps}"))
-            post(("status", "正在啟動 After Effects…（AE 會開出視窗，處理中請不要操作 AE）"))
+            post(("status", "正在啟動 After Effects…（如果 AE 跳出詢問視窗，請先回答；之後處理中請不要操作 AE）"))
             project.launch(job, exe)
             res = project.wait(job, on_tick=lambda s: post(
                 ("status", f"After Effects 處理中…已經過 {int(s) // 60} 分 {int(s) % 60:02d} 秒")))

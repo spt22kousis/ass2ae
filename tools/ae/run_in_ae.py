@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
+import re
 import sys
 import time
 from pathlib import Path
@@ -34,15 +34,28 @@ def afterfx() -> str:
     return exe
 
 
+DIALOGS: list[str] = []  # AE message boxes closed while scripts ran
+
+
 def run_jsx(script: Path, done: Path, timeout: float = 600) -> None:
+    """Run a script in AE and wait for its done file, closing (and recording) AE message boxes:
+    an error left on screen blocks every later script."""
+    import dialogs
+    from ass2ae import project
+
     if done.exists():
         done.unlink()
-    subprocess.Popen([afterfx(), "-r", str(script)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    exe = afterfx()
+    project.start_afterfx(exe)  # cold-started with -r, AE would quit after the script
+    project.spawn([exe, "-r", str(script)])
     t0 = time.time()
     while not done.exists():
         if time.time() - t0 > timeout:
             sys.exit(f"timed out waiting for {done.name}; is the 'Allow Scripts to Write Files' preference on?")
+        DIALOGS.extend(f"{script.name}: {m}" for m in dialogs.sweep())
         time.sleep(1)
+    time.sleep(3)  # some errors show up only after the script has returned
+    DIALOGS.extend(f"{script.name}: {m}" for m in dialogs.sweep())
     print(f"{script.name}: finished in {time.time() - t0:.0f}s")
 
 
@@ -52,8 +65,16 @@ def js_string(s: str) -> str:
 
 # --------------------------------------------------------------------- probe
 
+def remove_frames(pattern: str) -> None:
+    """Delete earlier rendered frames: AE asks before the render queue overwrites a file."""
+    for ext in ("png", "tif"):
+        for old in OUT.glob(f"{pattern}.{ext}"):
+            old.unlink()
+
+
 def cmd_probe(_args) -> int:
     OUT.mkdir(exist_ok=True)
+    remove_frames("probe_textindex*")
     run_jsx(HERE / "probes" / "probe_api.jsx", OUT / "probe_api.done")
     print(f"results: {OUT / 'probe_api.json'}")
     return 0
@@ -122,6 +143,10 @@ def verify_furi(group: dict, line: dict, main: dict, furi: dict | None) -> list[
     return errs
 
 
+MISSING_FONT = re.compile(r"font '.*' not found")
+NOTES: set[str] = set()
+
+
 def furi_overlaps(line: dict, layers: dict) -> list[str]:
     """Furigana boxes of one line that overlap on the same text row (unrotated lines only)."""
     if line.get("angle"):
@@ -136,7 +161,9 @@ def furi_overlaps(line: dict, layers: dict) -> list[str]:
     errs = []
     for a, b in zip(boxes, boxes[1:]):
         same_row = abs(a[2] - b[2]) < min(a[3], b[3]) / 2
-        if same_row and b[0] < a[1] - 2:  # ink may touch: 2 px tolerance
+        # runs are laid out edge to edge by advance width, so ink plus stroke of neighbouring
+        # kana may overlap a little, as within one string; a real collision is half a kana or more
+        if same_row and b[0] < a[1] - max(2.0, 0.1 * min(a[3], b[3])):
             errs.append(f"{a[4]} and {b[4]} overlap by {a[1] - b[0]:.1f} px")
     return errs
 
@@ -149,9 +176,11 @@ def verify(name: str, data: dict, result: dict) -> list[str]:
             errs.append(f"run {i + 1}: {run['error']}")
         rr = run.get("result") or {}
         for w in rr.get("aeWarnings") or []:
-            errs.append(f"run {i + 1} AE warning: {w}")
-        if result.get("comp") and run.get("activeAfter") != result["comp"]["name"]:
-            errs.append(f"run {i + 1}: viewer shows {run.get('activeAfter')!r} afterwards, not the comp")
+            if MISSING_FONT.search(w):  # depends on the fonts of this machine
+                NOTES.add(f"{name}: {w}")
+            else:
+                errs.append(f"run {i + 1} AE warning: {w}")
+        # (the converter opens the comp in the viewer after the script, so that is not checked here)
     if result.get("leftovers"):
         errs.append(f"temporary viewer comps left in the project: {result['leftovers']}")
     layers = {l["name"]: l for l in result.get("layers", []) if l.get("generated")}
@@ -217,14 +246,20 @@ def cmd_fixtures(args) -> int:
         renders = [m["t"] + m["d"] / 2 for line in data["lines"] for m in line["markers"][:1]][:2]
         cases.append({"name": name, "jsx": str(jsx), "mode": mode, "runs": 2, "renderTimes": renders,
                       "duration": data["comp"]["duration"]})
-    driver = OUT / "harness_driver.jsx"
-    driver.write_text(
-        "$.global.ASS2AE_HARNESS = " + json.dumps({"outDir": str(OUT), "cases": cases}, ensure_ascii=True) + ";\n"
-        "$.evalFile(" + js_string(str(HERE / "harness.jsx")) + ");\n", encoding="ascii")
-    for old in OUT.glob("*_[0-9]_*.png"):
-        old.unlink()
-    run_jsx(driver, OUT / "harness.done", timeout=args.timeout)
+    remove_frames("*_[0-9]_*")
+    for n in (1, 2):  # build, then re-run on the comps the converter opened after pass 1
+        driver = OUT / f"harness_driver_{n}.jsx"
+        cfg = {"outDir": str(OUT), "cases": cases, "pass": n}
+        driver.write_text(
+            "$.global.ASS2AE_HARNESS = " + json.dumps(cfg, ensure_ascii=True) + ";\n"
+            "$.evalFile(" + js_string(str(HERE / "harness.jsx")) + ");\n", encoding="ascii")
+        run_jsx(driver, OUT / f"harness_{n}.done", timeout=args.timeout)
     failed = 0
+    if DIALOGS:
+        failed += 1
+        print(f"AE showed {len(DIALOGS)} message box(es), closed with Enter:")
+        for d in DIALOGS:
+            print(f"   - {d}")
     for c in cases:
         result = json.loads((OUT / f"{c['name']}.result.json").read_text(encoding="utf-8"))
         errs = verify(c["name"], built[c["name"]], result)
@@ -234,6 +269,8 @@ def cmd_fixtures(args) -> int:
         for e in errs[:30]:
             print(f"   - {e}")
         failed += bool(errs)
+    for n in sorted(NOTES):
+        print(f"note: {n}")
     return 1 if failed else 0
 
 
@@ -369,7 +406,9 @@ def cmd_e2e(args) -> int:
     print(f"reopen: {len(got['layers'])} layers, {n_markers} markers: " + ("OK" if not errs else f"{len(errs)} problem(s)"))
     for e in errs[:30]:
         print(f"   - {e}")
-    return 1 if errs else 0
+    for d in DIALOGS:
+        print(f"AE message box (closed with Enter): {d}")
+    return 1 if errs or DIALOGS else 0
 
 
 def main() -> int:

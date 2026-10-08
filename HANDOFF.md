@@ -9,33 +9,38 @@
   - 歌詞圖層、marker、setParameters、變色 animator、重跑安全、自我檢查。
   - template 模式與 ass 模式。
   - 用基線＋字型 metrics 做垂直對齊。
-- **振假名圖層**
-  - Python 端：`jsxgen.furi_groups`，每組帶 karaskel 的排版群組 `lg` 和 `<` 旗標 `spill`。
-  - JSX 端：`createFuri`、`placeFuri`。照 karaskel 分組排版，`!`、`<` 旗標都有作用；重疊時把振假名往右推，不撐開主文字。
-  - 振假名層的父層設為所屬的歌詞層。
-- **檢視器切換**（`runtime.jsx` 的 `run()`、`hideViewer()`）
-  - 先用 `targetComp()` 決定目標合成，再把檢視器切到 4×4 的暫時合成 `_ass2ae_redirect_`。建完後切回目標合成，再刪掉暫時合成。
-  - 這段放在 undo group 裡面，所以按一次 Ctrl+Z 會全部復原。
-  - 前一任 agent 版本的 bug：先切檢視器、才讀 `activeItem`，所以使用者對「目前的合成」執行時，歌詞會建進暫時合成裡，接著被刪掉。這一版已修正。
-- **直接產生 AE 專案**（`project.py`）、**GUI**（`gui.py`）、**exe 打包**（`tools/build/`）。
-  - 打包版的命令列輸出到 pipe 或檔案時改用 UTF-8，在 Git Bash 裡不再亂碼。
-- **AE 實測工具**（`tools/ae/run_in_ae.py`）
-  - `probe`：probe 的渲染已改用 `T.renderFrame`，已在 AE 跑過。
-  - `fixtures`：第二次執行改走「檢視器裡的目前合成」路徑。會記錄每次執行的秒數，並檢查暫時合成沒有殘留、振假名沒有互相重疊。
-  - `e2e`：在程式裡操作 GUI 產生專案，再重開 .aep，檢查 marker 參數和父層是否保留。
-- **測試**：pytest 170 個全過。
+- **振假名圖層**：照 karaskel 的排版群組（`lg`）處理 `!`、`<`。重疊時把振假名往右推，不撐開主文字。父層設為所屬的歌詞層。
+- **檢視器**（`runtime.jsx` 的 `run()`）
+  - **對目前的合成執行時**：先決定目標，再切到同尺寸的暫時合成 `_ass2ae_redirect_`。建完刪掉它，全部包在 undo group 裡。
+  - **新合成、產生專案時**：不切換。合成用 `app.scheduleTask` 在腳本結束後才打開。如果在同一個腳本裡、剛加完文字圖層就打開新的檢視器，AE 會跳出「internal verification failure {no current context}」（已用二分法在 AE 實測確認）。
+- **直接產生 AE 專案**（`project.py`）
+  - **啟動 AE**：AE 沒開時，先不帶腳本把 AE 開起來，等主視窗出現後才送 `-r`。用 `-r` 直接冷啟動 AE，跑完腳本 AE 就會自己結束（已實測），使用者也就看不到專案。
+  - **啟動選項**：AE 以 `CREATE_BREAKAWAY_FROM_JOB` 啟動，避免呼叫它的程式結束時被一起關掉。
+  - **等不到主視窗**：最多等 15 分鐘，然後回報錯誤，不會把腳本盲目送出（腳本會被丟掉）。
+- **GUI**（`gui.py`）、**exe 打包**（`tools/build/`）。打包版的命令列輸出到 pipe 或檔案時用 UTF-8。
+- **AE 實測工具**（`tools/ae/`）
+  - `run_in_ae.py fixtures`：分兩個腳本執行。第一次指定目標，第二次對開在檢視器的合成重跑。會印出每次的秒數。
+  - `run_in_ae.py e2e`：在程式裡操作 GUI 建專案，再重開 .aep，檢查 marker 參數、時間、父層。
+  - `dialogs.py`：自動關掉 AE 的訊息框並記錄，算成失敗，避免一個錯誤擋住後面所有腳本。
+  - 實測檔用 `ass_example/snooze_short.ass`。整首歌的 `kk_ass`、`snooze_full` 要用 `--only` 指名才跑。
+- **測試**：pytest 174 個全過。2026-10-08 在 AE 實測：
+  - `e2e`：OK，38 秒，AE 留著，重開後 20 層、68 個 marker 都正確。
+  - `fixtures`：7 個案例全 OK，每次執行 0～8 秒。
+  - 兩者都沒有出現任何 AE 訊息框。
 
-## 進行中／未完成
+## 未完成／注意
 
-1. **AE 實測結果**：這一版的 `e2e` 和 `fixtures` 正在跑，結果會補在下一個 commit。
-   - 之前的 `e2e` 已經用 GUI 成功建好 snooze 專案（108 秒）。當時是測試腳本自己印結果時出錯（cp950），已修正。
-2. **測試檔**：AE 實測請用 `ass_example/snooze_short.ass`，這是使用者剪短的版本。整首歌的 `kk_ass`、`snooze_full` 只有用 `--only` 指名時才跑。
-3. **GUI 真人點擊**：`e2e` 走的是 GUI 本身的按鈕和流程，但還是建議請使用者用 exe 實際按一次。`dist/` 沒進 git，要先 build：`.venv\Scripts\python tools\build\build_exe.py`。
+1. **GUI 真人點擊**：`e2e` 走的是 GUI 本身的按鈕和流程，但還是建議請使用者用 exe 實際按一次。`dist/` 沒進 git，要先 build：`.venv\Scripts\python tools\build\build_exe.py`。
+2. **AE 磁碟快取**：反覆用影片（`snooze.mp4`，60fps HEVC）建專案時，AE 快取 `%LOCALAPPDATA%\Temp\Adobe\After Effects` 曾經把 C 槽塞滿（38.8 GB）。
+   - 跑有影片的測試前，先看 C 槽剩餘空間。
+   - 不要自己刪快取或改 AE 偏好設定，要先問使用者。
+3. **強制結束 AE 的後果**：下次啟動會跳出「Crash Repair Options」，要請使用者按「Continue」。
+   - 要關測試用的 AE，先用腳本 `app.project.close(CloseOptions.DO_NOT_SAVE_CHANGES)`（大專案要等二十幾秒），再用不帶 `/F` 的 `taskkill` 關掉。
 
 ## 環境備註
 
 - **AE 版本**：AE 2025（25.3）裝在 `C:\Program Files\Adobe\Adobe After Effects 2025`。偏好設定「Allow Scripts to Write Files and Access Network」已開。
-- **ass_example/**：使用者自己的歌詞與影片，**不要 commit**。
+- **ass_example/**：使用者自己的歌詞與影片。`snooze_short.ass` 是使用者自己 commit 的，其他檔案不要 commit。
 - **快照**：改了 `runtime.jsx` 或 `jsxgen.py` 之後要更新：`set UPDATE_SNAPSHOTS=1 && .venv\Scripts\python -m pytest`。
-- **ES3 檢查**：`node tests/js/check_es3.js <file>`，要先 `npm install --prefix tests/js`。檢查會擋 `.indexOf`（包括字串的），請改用 `substr` 比對。
+- **ES3 檢查**：`node tests/js/check_es3.js <file>`。檢查會擋 `.indexOf`（包括字串的），請改用 `substr` 比對。
 - **溝通**：使用者用繁體中文；跑長時間的 AE 測試前，先說大概要多久。

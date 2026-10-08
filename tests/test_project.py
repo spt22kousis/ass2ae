@@ -123,3 +123,31 @@ def test_cli_style_mode_defaults_to_ass_with_video(monkeypatch, tmp_path):
 
 def test_frozen_entry_point_exists():
     assert (Path(__file__).resolve().parent.parent / "tools" / "build" / "ass2ae_app.py").is_file()
+
+
+def test_launch_starts_afterfx_before_sending_the_script(job, monkeypatch):
+    # cold-started with -r, AE quits after the script, so AE is started on its own first
+    calls, ready = [], iter([False, False, True])
+    monkeypatch.setattr(project, "afterfx_pids", lambda: [1] if calls else [])
+    monkeypatch.setattr(project, "afterfx_ready", lambda: next(ready))
+    monkeypatch.setattr(project, "spawn", calls.append)
+    monkeypatch.setattr(project.time, "sleep", lambda s: None)
+    project.launch(job, "AfterFX.exe")
+    assert calls == [["AfterFX.exe"], ["AfterFX.exe", "-r", str(job.driver)]]
+    assert job.started > 0
+
+
+def test_launch_reuses_a_running_afterfx(job, monkeypatch):
+    calls = []
+    monkeypatch.setattr(project, "afterfx_pids", lambda: [42])
+    monkeypatch.setattr(project, "spawn", calls.append)
+    project.launch(job, "AfterFX.exe")
+    assert calls == [["AfterFX.exe", "-r", str(job.driver)]]
+
+
+def test_afterfx_pids_parses_tasklist(monkeypatch):
+    out = '"AfterFX.exe","21332","Console","32","1,045,764 K"\r\n"AfterFX.exe","7","Console","32","9 K"\r\n'
+    monkeypatch.setattr(project.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": out})())
+    assert project.afterfx_pids() == [21332, 7]
+    out = "INFO: No tasks are running which match the specified criteria.\r\n"
+    assert project.afterfx_pids() == []

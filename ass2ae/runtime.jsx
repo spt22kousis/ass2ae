@@ -228,6 +228,8 @@
         return Math.abs(comp.frameRate - DATA.comp.fps) < 0.0005;
     }
 
+    // The comp to fill: { comp, active } where active means it is the active item, so it may
+    // be on screen in the viewer.
     function targetComp() {
         var item = app.project ? app.project.activeItem : null;
         // Set by driver scripts (project builder, tests): a CompItem to fill, or "new".
@@ -235,7 +237,7 @@
         if (forced === "new") {
             item = null;
         } else if (forced) {
-            return forced;
+            return { comp: forced, active: false };
         }
         if (item !== null && item instanceof CompItem) {
             if (!fpsMatches(item)) {
@@ -245,11 +247,11 @@
             if (item.duration < DATA.comp.duration) {
                 warn("Active comp is shorter (" + item.duration + "s) than the lyrics (" + DATA.comp.duration + "s)");
             }
-            return item;
+            return { comp: item, active: true };
         }
         if (!app.project) { app.newProject(); }
-        return app.project.items.addComp(DATA.comp.name, DATA.comp.width, DATA.comp.height, 1,
-                                         DATA.comp.duration, DATA.comp.fps);
+        return { comp: app.project.items.addComp(DATA.comp.name, DATA.comp.width, DATA.comp.height, 1,
+                                                 DATA.comp.duration, DATA.comp.fps), active: false };
     }
 
     function removeGenerated(comp) {
@@ -702,10 +704,13 @@
     // ------------------------------------------------------------------ main ---
 
     // AE redraws the comp in the viewer after every change, which is extremely slow when it
-    // has video in it, so a tiny empty comp is shown while the layers are built.
-    function hideViewer() {
+    // has video in it, so an empty comp is shown while the layers are built. It has the
+    // target's size: the viewer keeps the zoom it picks for the stand-in (a tiny comp made it
+    // 1666%, and drawing the target that large failed with "no current context").
+    function hideViewer(comp) {
         try {
-            var dummy = app.project.items.addComp("_ass2ae_redirect_", 4, 4, 1, 1, 1);
+            var dummy = app.project.items.addComp("_ass2ae_redirect_", comp.width, comp.height,
+                                                  comp.pixelAspect, 1, comp.frameRate);
             dummy.openInViewer();
             return dummy;
         } catch (e) {
@@ -713,16 +718,27 @@
         }
     }
 
+    // Opening a comp in a new viewer from a script that has just added text layers to it
+    // makes AE report "internal verification failure {no current context}" once the script
+    // ends, so the comp is opened right after the script instead.
+    function openLater(comp) {
+        try {
+            app.scheduleTask("var c = app.project.itemByID(" + comp.id + "); if (c) { c.openInViewer(); }", 100, false);
+        } catch (e) {}
+    }
+
     function run() {
-        var comp = targetComp();  // first: the comp shown in the viewer may be the target
-        var dummy = hideViewer();
+        var target = targetComp();  // first: the comp shown in the viewer may be the target
+        var comp = target.comp;
+        // only the active comp may be on screen; removing the stand-in shows the target again
+        var dummy = target.active ? hideViewer(comp) : null;
         try {
             return build(comp);
         } finally {
-            try { comp.openInViewer(); } catch (e) {}
             if (dummy) {
-                try { dummy.remove(); } catch (e2) {}
+                try { dummy.remove(); } catch (e) {}
             }
+            openLater(comp);
         }
     }
 
