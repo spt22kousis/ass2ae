@@ -45,6 +45,7 @@ class Options:
     template: str = "KARA_TEMPLATE"
     with_animator: bool = True
     sung_color: list[float] | None = None
+    unsung_color: list[float] | None = None  # ass mode: replaces SecondaryColour
     newline_counts: bool = False
     font_scale: float = 0.7
     font_map: dict[str, str] = field(default_factory=dict)
@@ -207,7 +208,7 @@ def style_data(name: str, st: pysubs2.SSAStyle, subs: pysubs2.SSAFile, opts: Opt
         "fauxItalic": bool(st.italic) and not (face and face.italic),
         "fonts": candidates,
         "size": _num(st.fontsize),
-        "fill": color_rgb(st.secondarycolor),
+        "fill": opts.unsung_color or color_rgb(st.secondarycolor),
         "stroke": color_rgb(st.outlinecolor),
         "sung": color_rgb(st.primarycolor),
         "outline": _num(st.outline),

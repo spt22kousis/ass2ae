@@ -25,6 +25,7 @@ from .parser import load, select_reason
 from .timing import parse_offset
 
 DEFAULT_SUNG = "#0076FF"
+DEFAULT_UNSUNG = "#FFFFFF"
 FONT = ("Microsoft JhengHei UI", 10)
 LOG_FILE = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "ass2ae" / "gui.log"
 
@@ -48,6 +49,7 @@ class App(tk.Tk):
         self.video = tk.StringVar()
         self.aep = tk.StringVar()
         self.sung = tk.StringVar(value=DEFAULT_SUNG)
+        self.unsung = tk.StringVar(value=DEFAULT_UNSUNG)
         self.use_style_colour = tk.BooleanVar(value=False)
         self.furigana = tk.BooleanVar(value=True)
         self.animator = tk.BooleanVar(value=True)
@@ -97,14 +99,17 @@ class App(tk.Tk):
         r += 1
         colour = ttk.Frame(root)
         colour.grid(row=r, column=0, columnspan=3, sticky="w", pady=(10, 4))
-        ttk.Label(colour, text="唱到時的顏色").pack(side="left")
-        self.swatch = tk.Label(colour, width=4, relief="solid", borderwidth=1, background=self.sung.get(),
-                               cursor="hand2")
-        self.swatch.pack(side="left", padx=8)
-        self.swatch.bind("<Button-1>", lambda _e: self._pick_colour())
-        ttk.Button(colour, text="選顏色…", command=self._pick_colour).pack(side="left")
-        ttk.Checkbutton(colour, text="改用字幕樣式裡的顏色 (PrimaryColour)", variable=self.use_style_colour,
-                        command=self._sync_swatch).pack(side="left", padx=12)
+        self.swatches = {}
+        for var, label in ((self.unsung, "唱之前"), (self.sung, "唱到時")):
+            ttk.Label(colour, text=label).pack(side="left")
+            sw = tk.Label(colour, width=4, relief="solid", borderwidth=1, background=var.get(), cursor="hand2")
+            sw.pack(side="left", padx=6)
+            sw.bind("<Button-1>", lambda _e, v=var, t=label: self._pick_colour(v, t))
+            ttk.Button(colour, text="選…", width=4,
+                       command=lambda v=var, t=label: self._pick_colour(v, t)).pack(side="left", padx=(0, 18))
+            self.swatches[str(var)] = (sw, var)
+        ttk.Checkbutton(colour, text="改用字幕樣式裡的顏色", variable=self.use_style_colour,
+                        command=self._sync_swatch).pack(side="left")
 
         r += 1
         ttk.Checkbutton(root, text="加上振假名（標音），需要字幕裡有「漢字|かな」的寫法",
@@ -198,15 +203,17 @@ class App(tk.Tk):
         if path:
             self.afterfx.set(path)
 
-    def _pick_colour(self) -> None:
-        _rgb, hexa = colorchooser.askcolor(color=self.sung.get(), title="唱到時的顏色")
+    def _pick_colour(self, var: tk.StringVar, label: str) -> None:
+        _rgb, hexa = colorchooser.askcolor(color=var.get(), title=f"{label}的顏色")
         if hexa:
-            self.sung.set(hexa.upper())
+            var.set(hexa.upper())
             self.use_style_colour.set(False)
             self._sync_swatch()
 
     def _sync_swatch(self) -> None:
-        self.swatch.configure(background="#DDDDDD" if self.use_style_colour.get() else self.sung.get())
+        # with the style colours in use the swatches show them, greyed out by a sunken border
+        for sw, var in self.swatches.values():
+            sw.configure(background=var.get(), relief="sunken" if self.use_style_colour.get() else "solid")
 
     def _toggle_advanced(self) -> None:
         if self.adv.winfo_ismapped():
@@ -242,9 +249,11 @@ class App(tk.Tk):
         styles = [get_style(subs, s) for s in counts]
         if styles and all(st.primarycolor == st.secondarycolor for st in styles):
             self.use_style_colour.set(False)
+            self.unsung.set(_hex(styles[0].secondarycolor))  # keep the file's look before singing
         elif styles:
             self.use_style_colour.set(True)
             self.sung.set(_hex(styles[0].primarycolor))
+            self.unsung.set(_hex(styles[0].secondarycolor))
         self._sync_swatch()
         self._say(f"已讀取 {path.name}：{sum(counts.values())} 行可轉換。")
 
@@ -264,6 +273,7 @@ class App(tk.Tk):
             style_mode="ass",
             with_animator=self.animator.get(),
             sung_color=None if self.use_style_colour.get() else parse_color(self.sung.get()),
+            unsung_color=None if self.use_style_colour.get() else parse_color(self.unsung.get()),
             font_scale=float(self.font_scale.get()),
             font_map=read_font_map(self.font_map.get()) if self.font_map.get().strip() else {},
             furigana=self.furigana.get(),

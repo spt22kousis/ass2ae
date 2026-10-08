@@ -58,6 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-animator", dest="with_animator", action="store_false",
                    help="same as --no-with-animator")
     p.add_argument("--sung-color", help="sung colour, #RRGGBB or &HBBGGRR& (default: style PrimaryColour)")
+    p.add_argument("--unsung-color",
+                   help="not-yet-sung colour in --style-mode ass, #RRGGBB or &HBBGGRR& (default: style SecondaryColour)")
     p.add_argument("--newline-counts", action=argparse.BooleanOptionalAction, default=False,
                    help="include line breaks in marker comments (if AE's textIndex counts them; default off)")
     p.add_argument("--furigana", action=argparse.BooleanOptionalAction, default=True,
@@ -148,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             template=args.template,
             with_animator=args.with_animator,
             sung_color=parse_color(args.sung_color) if args.sung_color else None,
+            unsung_color=parse_color(args.unsung_color) if args.unsung_color else None,
             newline_counts=args.newline_counts,
             font_scale=args.font_scale,
             font_map=read_font_map(args.font_map) if args.font_map else {},

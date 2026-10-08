@@ -88,6 +88,7 @@ python -m ass2ae input.ass -o out.jsx
 | `--template` | `KARA_TEMPLATE` | 範本圖層名稱。會先找 `<名稱>_<樣式名>`（例如 `KARA_TEMPLATE_K1`），找不到再用 `<名稱>` |
 | `--with-animator` / `--no-animator` | 開 | 是否加變色 Animator |
 | `--sung-color` | 樣式的 PrimaryColour | 已唱色，`#RRGGBB` 或 `&HBBGGRR&` |
+| `--unsung-color` | 樣式的 SecondaryColour | 未唱色（只在 `--style-mode ass` 有效），格式同上 |
 | `--newline-counts` | 關 | marker comment 是否包含換行字元（見下方「換行與 textIndex」） |
 | `--font-map FILE` | — | 字型對照表，app.fonts 找不到時才用。JSON `{"ASS 字型名": "PostScriptName"}`，或每行 `ASS 字型名=PostScriptName` |
 | `--font-scale` | `0.7` | 讀不到字型檔時，AE 字級 ÷ ASS 字級的比例 |

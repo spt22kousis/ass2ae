@@ -208,3 +208,8 @@ def test_js_len_counts_utf16_units():
 def test_line_seconds_for_ae_side_frames():
     first = generate("jp_kanji_kana.ass", Options(offset=F(1, 2)))["lines"][0]
     assert (first["start"], first["end"]) == (1.5, 3.5)
+
+
+def test_unsung_color_replaces_secondary_colour():
+    data = generate("jp_kanji_kana.ass", Options(unsung_color=[0, 1, 0], style_mode="ass"))
+    assert all(st["fill"] == [0, 1, 0] for st in data["styles"].values())
