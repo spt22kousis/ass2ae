@@ -51,7 +51,8 @@ def test_en_fixture():
 
 def test_furigana_fixture():
     res = lines_of("furigana_hash.ass")
-    assert [l.text for l in res.lines] == ["漢字", "頭 で", "今日は", "東京", "あ", "#a", "漢字"]
+    assert [l.text for l in res.lines] == ["漢字", "頭 で", "今日は", "東京", "あ", "#a", "漢字",
+                                           "私達は", "私達は", "は僕だ"]
     # a \-B block after a syllable's text belongs to that syllable (AssKaraoke), and is sticky
     assert [s.inline_fx for s in res.lines[1].syllables] == ["A", "B", "B"]
 

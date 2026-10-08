@@ -517,56 +517,123 @@
         return rightEdge(ruler.layer) - ruler.base;
     }
 
-    // Parent the furigana to its line and centre it above the base syllable, its line box
-    // bottom on the top of the main line box (baseline - ascent).
-    function placeFuri(main, mainMetrics, furi, furiMetrics, group, line, ruler) {
+    // Line number of a string index, and where that line starts and ends.
+    function textLine(text, index) {
+        var k = 0, start = 0, i;
+        for (i = 0; i < index; i++) {
+            if (text.charAt(i) === "\r") {
+                k++;
+                start = i + 1;
+            }
+        }
+        var end = start;
+        while (end < text.length && text.charAt(end) !== "\r") { end++; }
+        return { k: k, start: start, end: end };
+    }
+
+    // Left edge of a line of advance width w in layer space, from the paragraph justification.
+    function lineLeft(td, w) {
+        var j = td.justification;
+        return j === ParagraphJustification.CENTER_JUSTIFY ? -w / 2 : (j === ParagraphJustification.RIGHT_JUSTIFY ? -w : 0);
+    }
+
+    // karaskel's furigana layout, except that the main text is never widened. Neighbouring
+    // syllables with furigana form a layout group (group.lg); its furigana run is centred over
+    // the group's base text, or starts at the base's left edge when the run is wider and may
+    // not spill back ("<"). A run that would overlap the previous one on its text line is
+    // pushed right instead of widening the base. Each furigana layer is parented to its line,
+    // its line box bottom on the top of the main line box (baseline - ascent).
+    function placeFuri(comp, main, mainMetrics, furis, line) {
         var t = line.inPoint;
         var mtd = textDocProp(main).valueAtTime(t, false);
         var text = String(mtd.text);
-        var k = 0, lineStart = 0, i;
-        for (i = 0; i < group.start; i++) {
-            if (text.charAt(i) === "\r") {
-                k++;
-                lineStart = i + 1;
-            }
-        }
-        var lineEnd = lineStart;
-        while (lineEnd < text.length && text.charAt(lineEnd) !== "\r") { lineEnd++; }
-        var a = advance(ruler, text.substring(lineStart, group.start));
-        var b = advance(ruler, text.substring(lineStart, group.end));
         var locs = null;
         try { locs = mtd.baselineLocs; } catch (e) { locs = null; }
-        var x0, baseY, firstBase = 0;
-        if (locs && locs.length >= 4 * (k + 1)) {
-            x0 = locs[4 * k];
-            baseY = locs[4 * k + 1];
-            firstBase = locs[1];
-        } else {
-            warnOnce("nolocs", "TextDocument.baselineLocs is unavailable; furigana positions are estimated");
-            var w = advance(ruler, text.substring(lineStart, lineEnd));
-            var j = mtd.justification;
-            x0 = j === ParagraphJustification.CENTER_JUSTIFY ? -w / 2 : (j === ParagraphJustification.RIGHT_JUSTIFY ? -w : 0);
-            baseY = k * mtd.leading;
+        var ruler = makeRuler(comp, main);
+        var furiRuler = makeRuler(comp, furis[0].layer);
+
+        function origin(tl) {
+            var x0, baseY, firstBase = 0;
+            if (locs && locs.length >= 4 * (tl.k + 1)) {
+                x0 = locs[4 * tl.k];
+                baseY = locs[4 * tl.k + 1];
+                firstBase = locs[1];
+            } else {
+                warnOnce("nolocs", "TextDocument.baselineLocs is unavailable; furigana positions are estimated");
+                x0 = lineLeft(mtd, advance(ruler, text.substring(tl.start, tl.end)));
+                baseY = tl.k * mtd.leading;
+            }
+            var top;
+            if (mainMetrics) {
+                top = baseY - mtd.fontSize * mainMetrics.asc * vscaleOf(mtd);
+            } else {
+                top = main.sourceRectAtTime(t, false).top + (baseY - firstBase);
+            }
+            return { x0: x0, top: top };
         }
-        var top;
-        if (mainMetrics) {
-            top = baseY - mtd.fontSize * mainMetrics.asc * vscaleOf(mtd);
-        } else {
-            top = main.sourceRectAtTime(t, false).top + (baseY - firstBase);
+
+        var runs = [], run = null, i, f;
+        for (i = 0; i < furis.length; i++) {
+            f = furis[i];
+            var tl = textLine(text, f.group.start);
+            var left = advance(ruler, text.substring(tl.start, f.group.start));
+            var right = advance(ruler, text.substring(tl.start, f.group.end));
+            f.td = textDocProp(f.layer).valueAtTime(t, false);
+            f.width = advance(furiRuler, String(f.td.text));
+            if (!run || run.lg !== f.group.lg || run.line.k !== tl.k) {
+                run = { lg: f.group.lg, line: tl, left: left, right: right, width: 0, spill: false, items: [] };
+                runs.push(run);
+            }
+            run.right = right;
+            run.width += f.width;
+            run.spill = run.spill || f.group.spill;
+            run.items.push(f);
         }
-        var ftd = textDocProp(furi).valueAtTime(t, false);
-        var fr = furi.sourceRectAtTime(t, false);
-        var fb = baselines(ftd);
-        var ax = fr.left + fr.width / 2;
-        var ay = (furiMetrics && fb) ? fb.last + ftd.fontSize * furiMetrics.desc * vscaleOf(ftd) : fr.top + fr.height;
+
+        var prevRight = null, prevK = -1;
+        for (var r = 0; r < runs.length; r++) {
+            run = runs[r];
+            if (run.line.k !== prevK) {
+                prevRight = null;
+                prevK = run.line.k;
+            }
+            var base = run.right - run.left;
+            var x = (run.width <= base || run.spill) ? run.left + (base - run.width) / 2 : run.left;
+            if (prevRight !== null && x < prevRight) { x = prevRight; }
+            prevRight = x + run.width;
+            var org = origin(run.line);
+            for (i = 0; i < run.items.length; i++) {
+                f = run.items[i];
+                anchorFuri(main, f, t, org.x0 + x + f.width / 2, org.top);
+                x += f.width;
+            }
+        }
+        ruler.layer.remove();
+        furiRuler.layer.remove();
+    }
+
+    // Anchor the furigana layer at the bottom centre of its line box and put it at (x, y)
+    // in its main layer's space.
+    function anchorFuri(main, f, t, x, y) {
+        var flocs = null;
+        try { flocs = f.td.baselineLocs; } catch (e) { flocs = null; }
+        var left = (flocs && flocs.length >= 4) ? flocs[0] : lineLeft(f.td, f.width);
+        var fb = baselines(f.td);
+        var ay;
+        if (f.metrics && fb) {
+            ay = fb.last + f.td.fontSize * f.metrics.desc * vscaleOf(f.td);
+        } else {
+            var fr = f.layer.sourceRectAtTime(t, false);
+            ay = fr.top + fr.height;
+        }
         try {
-            furi.setParentWithJump(main);  // keep the copy's own transform values
+            f.layer.setParentWithJump(main);  // keep the copy's own transform values
         } catch (e2) {
-            furi.parent = main;
+            f.layer.parent = main;
         }
-        var tr = furi.property(MN.transform);
-        setStatic(tr.property(MN.anchor), [ax, ay]);
-        setStatic(tr.property(MN.position), [x0 + (a + b) / 2, top]);
+        var tr = f.layer.property(MN.transform);
+        setStatic(tr.property(MN.anchor), [left + f.width / 2, ay]);
+        setStatic(tr.property(MN.position), [x, y]);
     }
 
     function addMarkers(layer, markers) {
@@ -634,8 +701,32 @@
 
     // ------------------------------------------------------------------ main ---
 
+    // AE redraws the comp in the viewer after every change, which is extremely slow when it
+    // has video in it, so a tiny empty comp is shown while the layers are built.
+    function hideViewer() {
+        try {
+            var dummy = app.project.items.addComp("_ass2ae_redirect_", 4, 4, 1, 1, 1);
+            dummy.openInViewer();
+            return dummy;
+        } catch (e) {
+            return null;
+        }
+    }
+
     function run() {
-        var comp = targetComp();
+        var comp = targetComp();  // first: the comp shown in the viewer may be the target
+        var dummy = hideViewer();
+        try {
+            return build(comp);
+        } finally {
+            try { comp.openInViewer(); } catch (e) {}
+            if (dummy) {
+                try { dummy.remove(); } catch (e2) {}
+            }
+        }
+    }
+
+    function build(comp) {
         var removed = removeGenerated(comp);
         var sx = comp.width / DATA.playRes[0];
         var sy = comp.height / DATA.playRes[1];
@@ -658,39 +749,32 @@
             made.push({ layer: res.layer, line: line });
             var groups = line.furi || [];
             if (groups.length) {
-                var ruler = makeRuler(comp, res.layer);
-                for (var g = 0; g < groups.length; g++) {
+                var furis = [], g;
+                for (g = 0; g < groups.length; g++) {
                     var fres = createFuri(comp, line, groups[g], sy);
                     fres.layer.moveBefore(res.layer);
-                    placeFuri(res.layer, res.metrics, fres.layer, fres.metrics, groups[g], line, ruler);
+                    furis.push({ layer: fres.layer, metrics: fres.metrics, group: groups[g] });
+                }
+                placeFuri(comp, res.layer, res.metrics, furis, line);
+                for (g = 0; g < groups.length; g++) {
                     if (groups[g].markers.length) {
-                        addMarkers(fres.layer, groups[g].markers);
+                        addMarkers(furis[g].layer, groups[g].markers);
                         if (DATA.options.withAnimator) {
-                            addAnimator(fres.layer, DATA.options.sungColor || DATA.styles[line.furiStyle].sung);
+                            addAnimator(furis[g].layer, DATA.options.sungColor || DATA.styles[line.furiStyle].sung);
                         }
                     }
-                    made.push({ layer: fres.layer, line: groups[g] });
+                    made.push({ layer: furis[g].layer, line: groups[g] });
                     furiCount++;
                 }
-                ruler.layer.remove();
             }
         }
         var markerCount = 0;
         for (var j = 0; j < made.length; j++) {
             if (made[j].line.markers.length) { markerCount += selfCheck(made[j].layer, made[j].line); }
         }
-        try { comp.openInViewer(); } catch (e) {}
         return { comp: comp.name, compId: comp.id, layers: made.length - furiCount, furigana: furiCount,
                  markers: markerCount, removed: removed };
     }
-
-    // Redirect the viewer to a tiny dummy comp so AE does not re-render
-    // the target on every layer change (extremely slow with video).
-    var _redirect = null;
-    try {
-        _redirect = app.project.items.addComp("_ass2ae_redirect_", 4, 4, 1, 1, 1);
-        _redirect.openInViewer();
-    } catch (e) {}
 
     var summary = null;
     app.beginUndoGroup("ass2ae: " + DATA.source);
@@ -701,7 +785,6 @@
     } finally {
         app.endUndoGroup();
     }
-    if (_redirect) { try { _redirect.remove(); } catch (e) {} }
 
     var all = DATA.warnings.concat(warnings);
     if ($.global.ASS2AE_HEADLESS) {

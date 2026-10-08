@@ -36,8 +36,8 @@
     }
 
     // a generic template plus a per-style one (KARA_TEMPLATE_K1) and an unrelated user layer
-    function templateComp(name) {
-        var comp = app.project.items.addComp(PREFIX + name, 1920, 1080, 1, 240, 24000 / 1001);
+    function templateComp(name, duration) {
+        var comp = app.project.items.addComp(PREFIX + name, 1920, 1080, 1, Math.max(240, duration), 24000 / 1001);
         var bg = comp.layers.addSolid([0.15, 0.15, 0.2], "USER_BG", 1920, 1080, 1);
         addTemplate(comp, "KARA_TEMPLATE", "NotoSansJP-Bold", [0.6, 0.8, 1]);
         addTemplate(comp, "KARA_TEMPLATE_K1", "GenJyuuGothic-Bold", [1, 0.9, 0.5]);
@@ -111,22 +111,40 @@
         var comp = null;
         try {
             if (cs.mode === "template") {
-                comp = templateComp(cs.name);
+                comp = templateComp(cs.name, cs.duration);
                 res.mustSurvive = ["KARA_TEMPLATE", "KARA_TEMPLATE_K1", "USER_BG"];
             }
             for (var r = 0; r < cs.runs; r++) {
                 $.global.ASS2AE_HEADLESS = true;
                 $.global.ASS2AE_RESULT = null;
-                $.global.ASS2AE_TARGET = comp ? comp : "new";
+                // The first run names its target (as the project builder does); later runs use
+                // the comp open in the viewer, like a user running the script on the active comp.
+                var viaViewer = r > 0 && comp;
+                if (viaViewer) {
+                    comp.openInViewer();
+                    $.global.ASS2AE_TARGET = null;
+                } else {
+                    $.global.ASS2AE_TARGET = comp ? comp : "new";
+                }
+                var t0 = new Date().getTime();
+                var run = { viaViewer: !!viaViewer };
                 try {
                     $.evalFile(cs.jsx);
-                    res.runs.push({ result: $.global.ASS2AE_RESULT });
+                    run.result = $.global.ASS2AE_RESULT;
                 } catch (e) {
-                    res.runs.push({ error: e.toString() + " line " + e.line });
+                    run.error = e.toString() + " line " + e.line;
                 }
+                run.seconds = (new Date().getTime() - t0) / 1000;
+                var active = app.project.activeItem;
+                run.activeAfter = active ? active.name : null;
+                res.runs.push(run);
                 if (!comp && $.global.ASS2AE_RESULT && $.global.ASS2AE_RESULT.summary) {
                     comp = app.project.itemByID($.global.ASS2AE_RESULT.summary.compId);
                 }
+            }
+            res.leftovers = [];
+            for (var it2 = 1; it2 <= app.project.numItems; it2++) {
+                if (app.project.item(it2).name === "_ass2ae_redirect_") { res.leftovers.push(it2); }
             }
             res.frames = [];
             for (var f = 0; f < cs.renderTimes.length; f++) {

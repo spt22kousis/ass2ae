@@ -112,11 +112,18 @@ def furi_markers(syl: Syllable, line: Line, offset: Fraction) -> list[dict]:
 
 
 def furi_groups(line: Line, n: int, style_key: str, offset: Fraction, warnings: list[str]) -> list[dict]:
-    """Furigana layers for one line: text, the base range in the layer text (JS indices) and markers."""
+    """Furigana layers for one line: text, the base range in the layer text (JS indices) and markers.
+
+    "lg" is karaskel's layout group: neighbouring syllables with furigana share one, unless the
+    furigana starts with "!" or "<" or a line break comes between them. "spill" is the "<" flag
+    (the furigana may spill over the left edge of its base text)."""
     groups: list[dict] = []
     pos = 0
+    lg = 0
+    prev_end = None  # end of the previous syllable's base, while that syllable had furigana
     for syl in line.syllables:
         text = "".join(f.text for f in syl.furi).replace(NEWLINE, "")
+        joined = False
         if text:
             i, j = 0, len(syl.text)
             while i < j and syl.text[i] in _BASE_SPACE:
@@ -127,6 +134,8 @@ def furi_groups(line: Line, n: int, style_key: str, offset: Fraction, warnings: 
             if not base or NEWLINE in base:
                 warnings.append(f"event #{line.event_no}: furigana {text!r} has no single-line base text, skipped")
             else:
+                if prev_end is None or syl.furi[0].isbreak or NEWLINE in line.text[prev_end:pos + i]:
+                    lg += 1
                 k = len(groups) + 1
                 markers = furi_markers(syl, line, offset)
                 groups.append({
@@ -136,8 +145,14 @@ def furi_groups(line: Line, n: int, style_key: str, offset: Fraction, warnings: 
                     "base": base,
                     "start": js_len(line.text[:pos + i]),
                     "end": js_len(line.text[:pos + j]),
+                    "lg": lg,
+                    "spill": any(f.spillback for f in syl.furi),
                     "markers": markers,
                 })
+                prev_end = pos + j
+                joined = True
+        if not joined:
+            prev_end = None
         pos += len(syl.text)
     return groups
 

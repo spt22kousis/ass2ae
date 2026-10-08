@@ -156,6 +156,28 @@ def test_furigana_groups():
     assert [(g["text"], g["start"], g["end"]) for g in data["lines"][3]["furi"]] == [("とう", 0, 1), ("きょう", 1, 2)]
 
 
+def test_furigana_layout_groups():
+    lines = generate("furigana_hash.ass")["lines"]
+
+    def groups(i):
+        return [(g["text"], g["lg"], g["spill"]) for g in lines[i]["furi"]]
+
+    assert groups(0) == [("かん", 1, False), ("じ", 1, False)]  # neighbours share a layout group
+    assert groups(1) == [("あたま", 1, True)]  # "<" spills back
+    assert groups(3) == [("とう", 1, False), ("きょう", 2, False)]  # "!" and "！" break
+    assert groups(7) == [("わたくし", 1, False), ("たち", 1, False)]
+    assert groups(8) == [("わたくし", 1, False), ("たち", 2, False)]
+    assert groups(9) == [("ぼくたちの", 1, True)]
+
+
+def test_furigana_layout_group_breaks_at_line_break():
+    subs = load(str(FIXTURES / "furigana_hash.ass"))
+    subs.events[0].text = r"{\k20}漢|かん{\k20}\N字|じ"
+    line = build_data(subs, parse_subs(subs), Options(), "x.ass")["lines"][0]
+    assert line["text"] == "漢\r字"
+    assert [(g["start"], g["end"], g["lg"]) for g in line["furi"]] == [(0, 1, 1), (2, 3, 2)]
+
+
 def test_zero_length_furigana_joins_next_part():
     (g,) = generate("furigana_hash.ass")["lines"][6]["furi"]  # {\k0}漢|かん{\k20}字|じ
     assert g["text"] == "かんじ" and (g["start"], g["end"]) == (0, 2)
