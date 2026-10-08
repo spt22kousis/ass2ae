@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import queue
 import sys
 import threading
@@ -25,6 +26,7 @@ from .timing import parse_offset
 
 DEFAULT_SUNG = "#0076FF"
 FONT = ("Microsoft JhengHei UI", 10)
+LOG_FILE = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "ass2ae" / "gui.log"
 
 
 def _hex(c) -> str:
@@ -64,6 +66,11 @@ class App(tk.Tk):
         if found:
             self.afterfx.set(str(found[0]))
         self.after(100, self._pump)
+
+    def report_callback_exception(self, exc, val, tb) -> None:
+        # the windowed exe has no console: show unexpected errors instead of losing them
+        logging.error("GUI callback failed", exc_info=(exc, val, tb))
+        messagebox.showerror("ass2ae", f"程式發生錯誤：{val}\n\n詳細記錄在 {LOG_FILE}")
 
     # ------------------------------------------------------------------ layout
 
@@ -252,7 +259,7 @@ class App(tk.Tk):
         self.log.see("end")
         self.log.configure(state="disabled")
 
-    def _options(self) -> tuple[Options, list[str] | None]:
+    def _job_options(self) -> tuple[Options, list[str] | None]:
         opts = Options(
             style_mode="ass",
             with_animator=self.animator.get(),
@@ -287,7 +294,7 @@ class App(tk.Tk):
             messagebox.showwarning("ass2ae", "請至少勾選一個樣式。")
             return
         try:
-            opts, styles = self._options()
+            opts, styles = self._job_options()
         except (ValueError, OSError) as e:
             messagebox.showwarning("ass2ae", f"設定有誤：{e}")
             return
@@ -387,6 +394,12 @@ def main() -> None:
         except Exception:  # noqa: BLE001 - older Windows
             pass
     logging.getLogger("fontTools").setLevel(logging.ERROR)
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        logging.basicConfig(filename=LOG_FILE, encoding="utf-8", level=logging.WARNING,
+                            format="%(asctime)s %(levelname)s %(message)s")
+    except OSError:
+        pass
     App().mainloop()
 
 
